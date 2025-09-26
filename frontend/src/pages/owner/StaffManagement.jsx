@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 // Using Lucide Icons as they were in the original import
 import { Users, Plus, Edit2, Trash2, Mail, Phone, UserCheck, Calendar, Clock, X, TrendingUp, QrCode } from 'lucide-react';
 import OwnerNavbar from '../../components/OwnerNavbar';
@@ -7,42 +7,11 @@ import QRCodeGenerator from '../../components/QRCodeGenerator';
 
 const StaffManagement = () => {
   const [showQRGenerator, setShowQRGenerator] = useState(false);
-  const [staff, setStaff] = useState([
-    {
-      id: 1,
-      name: 'Sarah Johnson',
-      email: 'sarah.j@email.com',
-      phone: '+1 (555) 123-4567',
-      role: 'Cashier',
-      availability: {
-        Monday: ['09:00-17:00'],
-        Tuesday: ['09:00-17:00'],
-        Wednesday: ['09:00-17:00'],
-        Thursday: ['09:00-17:00'],
-        Friday: ['09:00-17:00'],
-        Saturday: [],
-        Sunday: []
-      },
-      status: 'active'
-    },
-    {
-      id: 2,
-      name: 'Mike Chen',
-      email: 'mike.chen@email.com',
-      phone: '+1 (555) 987-6543',
-      role: 'Stock Manager',
-      availability: {
-        Monday: ['10:00-18:00'],
-        Tuesday: ['10:00-18:00'],
-        Wednesday: [],
-        Thursday: ['10:00-18:00'],
-        Friday: ['10:00-18:00'],
-        Saturday: ['09:00-15:00'],
-        Sunday: ['10:00-14:00']
-      },
-      status: 'active'
-    }
-  ]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [authData, setAuthData] = useState(null);
+  const [shopData, setShopData] = useState(null);
+  const [staff, setStaff] = useState([]);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
@@ -55,6 +24,83 @@ const StaffManagement = () => {
 
   const roles = ['Cashier', 'Helper', 'Stock Manager', 'Sales Associate', 'Supervisor', 'Cleaner'];
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  // Fetch employees and shop data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        setError('');
+
+        // Get auth data from localStorage
+        const storedAuthData = localStorage.getItem('ownerData');
+        if (!storedAuthData) {
+          throw new Error('No authentication data found');
+        }
+
+        const auth = JSON.parse(storedAuthData);
+        setAuthData(auth);
+
+        if (!auth.googleId) {
+          throw new Error('No Google ID found in auth data');
+        }
+
+        console.log('StaffManagement: Fetching business profile data for Google ID:', auth.googleId);
+
+        // Fetch business profile to get shop data
+        const profileResponse = await fetch(`http://localhost:3000/owner/${auth.googleId}/business-profile`);
+        
+        if (!profileResponse.ok) {
+          throw new Error(`Failed to fetch business profile: ${profileResponse.status} ${profileResponse.statusText}`);
+        }
+        
+        const profileResult = await profileResponse.json();
+
+        if (!profileResult.success) {
+          throw new Error(profileResult.message || 'Failed to fetch business profile data');
+        }
+
+        const { businessProfile } = profileResult;
+        
+        if (!businessProfile.hasShop) {
+          throw new Error('No shop found. Please complete your business registration first.');
+        }
+
+        setShopData(businessProfile.shop);
+
+        // Fetch employees for this shop
+        console.log('StaffManagement: Fetching employees for shop:', businessProfile.shop.id);
+        const employeesResponse = await fetch(`http://localhost:3000/shop/${businessProfile.shop.id}/employees`);
+        
+        if (!employeesResponse.ok) {
+          throw new Error(`Failed to fetch employees: ${employeesResponse.status} ${employeesResponse.statusText}`);
+        }
+        
+        const employeesResult = await employeesResponse.json();
+
+        if (!employeesResult.success) {
+          throw new Error(employeesResult.message || 'Failed to fetch employees');
+        }
+
+        console.log('StaffManagement: Employees data received:', employeesResult.employees);
+        setStaff(employeesResult.employees);
+
+      } catch (error) {
+        console.error('StaffManagement: Error fetching data:', error);
+        
+        // Handle specific error types
+        if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED')) {
+          setError('Backend server is not running. Please start the server and try again.');
+        } else {
+          setError(error.message || 'Failed to load staff data');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // Magic UI Shimmer Card Component (Kept for reference)
   const ShimmerCard = ({ children, className = "" }) => (
@@ -81,29 +127,56 @@ const StaffManagement = () => {
     </div>
   );
 
-  const handleAddStaff = (e) => {
+  const handleAddStaff = async (e) => {
     e.preventDefault();
-    const staffMember = {
-      ...newStaff,
-      id: Date.now(),
-      availability: {
-        Monday: [],
-        Tuesday: [],
-        Wednesday: [],
-        Thursday: [],
-        Friday: [],
-        Saturday: [],
-        Sunday: []
-      },
-      status: 'pending'
-    };
     
-    setStaff([...staff, staffMember]);
-    setNewStaff({ name: '', email: '', phone: '', role: '' });
-    setShowAddModal(false);
-    
-    // Mock email sending
-    console.log(`Registration email sent to ${staffMember.email}`);
+    if (!authData || !shopData) {
+      alert('Authentication or shop data not available');
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:3000/owner/add-employee', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ownerId: authData.googleId,
+          shopId: shopData.id,
+          name: newStaff.name,
+          email: newStaff.email,
+          phone: newStaff.phone,
+          role: newStaff.role,
+          wage: 0 // Default wage, can be updated later
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to add employee');
+      }
+
+      if (result.success) {
+        // Refresh the staff list
+        const employeesResponse = await fetch(`http://localhost:3000/shop/${shopData.id}/employees`);
+        const employeesResult = await employeesResponse.json();
+        
+        if (employeesResult.success) {
+          setStaff(employeesResult.employees);
+        }
+        
+        setNewStaff({ name: '', email: '', phone: '', role: '' });
+        setShowAddModal(false);
+        alert('Employee added successfully! Registration email sent.');
+      } else {
+        throw new Error(result.message || 'Failed to add employee');
+      }
+    } catch (error) {
+      console.error('Error adding employee:', error);
+      alert(`Error adding employee: ${error.message}`);
+    }
   };
 
   const removeStaff = (id) => {
@@ -111,6 +184,7 @@ const StaffManagement = () => {
   };
 
   const getAvailabilityHours = (availability) => {
+    if (!availability) return 0;
     const totalHours = Object.values(availability).reduce((total, daySlots) => {
       return total + daySlots.reduce((dayTotal, slot) => {
         const [start, end] = slot.split('-');
@@ -131,7 +205,7 @@ const StaffManagement = () => {
           {/* Availability text/background updated to blue/indigo */}
           <div className="font-medium text-blue-700 mb-1">{day.substring(0, 3)}</div>
           <div className="space-y-1">
-            {availability[day].length > 0 ? (
+            {availability && availability[day] && availability[day].length > 0 ? (
               availability[day].map((slot, index) => (
                 <div key={index} className="bg-blue-100 text-blue-700 px-1 py-1 rounded text-xs">
                   {slot.replace('-', '-')}
@@ -145,6 +219,57 @@ const StaffManagement = () => {
       ))}
     </div>
   );
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+        <OwnerNavbar />
+        <Particles count={70} />
+        <div className="relative z-10 pt-24 p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading staff data...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+        <OwnerNavbar />
+        <Particles count={70} />
+        <div className="relative z-10 pt-24 p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <div className="bg-red-100 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                  <X className="w-8 h-8 text-red-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Staff Data</h3>
+                <p className="text-gray-600 mb-6">{error}</p>
+                {error.includes('Backend server is not running') && (
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition-colors"
+                  >
+                    Start Server & Retry
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     // 1. Updated Background Gradient
@@ -200,33 +325,6 @@ const StaffManagement = () => {
             </div>
           </ShimmerCard>
 
-          {/* Stats Cards - Gradients Updated */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-            <AnimatedCounter 
-              value={staff.length} 
-              label="Total Staff" 
-              icon={Users} 
-              gradient="from-blue-500 to-blue-700" // Updated to blue
-            />
-            <AnimatedCounter 
-              value={staff.filter(s => s.status === 'active').length} 
-              label="Active Staff" 
-              icon={UserCheck} 
-              gradient="from-blue-500 to-blue-700" // Kept green for status
-            />
-            <AnimatedCounter 
-              value={staff.filter(s => s.status === 'pending').length} 
-              label="Pending Setup" 
-              icon={Clock} 
-              gradient="from-blue-500 to-blue-700" // Kept yellow for warning/pending
-            />
-            <AnimatedCounter 
-              value={`${staff.reduce((total, s) => total + getAvailabilityHours(s.availability), 0).toFixed(0)}h`} 
-              label="Total Hours/Week" 
-              icon={Calendar} 
-              gradient="from-indigo-500 to-indigo-700" // Updated to indigo
-            />
-          </div>
 
           {/* Staff List */}
           <div className="space-y-6">
@@ -260,7 +358,7 @@ const StaffManagement = () => {
                               ? 'bg-green-100 text-green-800' 
                               : 'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {member.status === 'active' ? 'Active' : 'Pending Setup'}
+                            {member.status === 'active' ? 'Active' : 'New Employee'}
                           </span>
                         </div>
                       </div>
@@ -286,7 +384,14 @@ const StaffManagement = () => {
                       <Calendar className="w-4 h-4" />
                       Weekly Availability ({getAvailabilityHours(member.availability).toFixed(1)} hours/week)
                     </h4>
-                    <AvailabilityGrid availability={member.availability} />
+                    {member.availability ? (
+                      <AvailabilityGrid availability={member.availability} />
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        <p className="text-sm">No availability set yet</p>
+                        <p className="text-xs text-gray-400">Employee needs to set their availability</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </ShimmerCard>
@@ -416,13 +521,15 @@ const StaffManagement = () => {
           )}
 
           {/* QR Code Generator Modal */}
-          <QRCodeGenerator
-            isOpen={showQRGenerator}
-            onClose={() => setShowQRGenerator(false)}
-            ownerId="110203721319547908065"
-            shopId="lwwQIz4mwwuFFuT4G0Az"
-            shopName="Candies Cafe"
-          />
+          {authData && shopData && (
+            <QRCodeGenerator
+              isOpen={showQRGenerator}
+              onClose={() => setShowQRGenerator(false)}
+              ownerId={authData.googleId}
+              shopId={shopData.id}
+              shopName={shopData.shopName}
+            />
+          )}
         </div>
       </div>
 

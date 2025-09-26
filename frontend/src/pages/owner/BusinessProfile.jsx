@@ -1,28 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, MapPin, Phone, Clock, Users, Upload, Edit3, Save, X, Plus, Camera, Mail, Calendar, TrendingUp, Award } from 'lucide-react';
 import OwnerNavbar from '../../components/OwnerNavbar';
 import Particles from '../../components/ui/magic/Particles';
 
 const BusinessProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [authData, setAuthData] = useState(null);
   const [profileData, setProfileData] = useState({
-    businessName: 'Sunrise Cafe & Bakery',
-    googleAddress: 'https://maps.google.com/cafe-sunrise-main-st',
-    contactNumber: '+1 (555) 123-4567',
-    email: 'info@sunrisecafe.com',
-    businessImages: [
-      '/api/placeholder/300/200',
-      '/api/placeholder/300/200',
-      '/api/placeholder/300/200',
-    ],
-    roles: ['Cashier', 'Barista', 'Baker', 'Kitchen Helper', 'Manager'],
-    businessDescription: 'A cozy neighborhood cafe and bakery serving fresh coffee, artisan pastries, and light meals. We pride ourselves on creating a warm, welcoming atmosphere for our community.',
-    openingTime: '06:30',
-    closingTime: '19:00',
-    businessDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-    foundedYear: '2019',
-    totalEmployees: 8,
-    avgCustomersPerDay: 150
+    businessName: '',
+    googleAddress: '',
+    contactNumber: '',
+    email: '',
+    businessImages: [],
+    roles: [],
+    businessDescription: '',
+    openingTime: '09:00',
+    closingTime: '18:00',
+    businessDays: [],
+    foundedYear: '',
+    totalEmployees: 0,
+    avgCustomersPerDay: 0
   });
 
   const [editData, setEditData] = useState(profileData);
@@ -30,9 +29,150 @@ const BusinessProfile = () => {
 
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  const handleSave = () => {
-    setProfileData(editData);
-    setIsEditing(false);
+  // Fetch owner and shop data from API
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        setIsLoading(true);
+        setError('');
+
+        // Get auth data from localStorage
+        const storedAuthData = localStorage.getItem('ownerData');
+        if (!storedAuthData) {
+          throw new Error('No authentication data found');
+        }
+
+        const auth = JSON.parse(storedAuthData);
+        setAuthData(auth);
+
+        if (!auth.googleId) {
+          throw new Error('No Google ID found in auth data');
+        }
+
+        console.log('BusinessProfile: Fetching business profile data for Google ID:', auth.googleId);
+
+        // Fetch complete business profile data (owner + shop)
+        const response = await fetch(`http://localhost:3000/owner/${auth.googleId}/business-profile`);
+        
+        if (!response.ok) {
+          console.error('BusinessProfile: API response not ok:', response.status, response.statusText);
+          throw new Error(`Failed to fetch business profile: ${response.status} ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('BusinessProfile: Business profile data received:', result);
+
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to fetch business profile data');
+        }
+
+        const { businessProfile } = result;
+        const ownerData = businessProfile.owner;
+        const shopData = businessProfile.shop;
+        
+        if (!businessProfile.hasShop) {
+          console.warn('BusinessProfile: No shop data found, using owner data only');
+        }
+
+        // Convert business hours to business days
+        const businessDays = shopData.businessHours ? 
+          shopData.businessHours
+            .filter(hour => hour.isOpen)
+            .map(hour => daysOfWeek[hour.weekday]) : [];
+
+        // Set profile data
+        const combinedData = {
+          businessName: shopData.shopName || ownerData.name || 'Your Business',
+          googleAddress: shopData.mapsUrl || ownerData.mapsUrl || '',
+          contactNumber: ownerData.phone || '',
+          email: ownerData.email || '',
+          businessImages: [], // TODO: Implement image storage
+          roles: shopData.roles || [],
+          businessDescription: shopData.businessDescription || 'Complete your business profile to add a description.',
+          openingTime: shopData.businessHours && shopData.businessHours.length > 0 ? 
+            shopData.businessHours[0].start : '09:00',
+          closingTime: shopData.businessHours && shopData.businessHours.length > 0 ? 
+            shopData.businessHours[0].end : '18:00',
+          businessDays: businessDays,
+          foundedYear: shopData.foundedYear || '',
+          totalEmployees: shopData.totalEmployees || 0,
+          avgCustomersPerDay: shopData.avgCustomersPerDay || 0
+        };
+
+        setProfileData(combinedData);
+        setEditData(combinedData);
+
+      } catch (error) {
+        console.error('BusinessProfile: Error fetching data:', error);
+        
+        // Handle specific error types
+        if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED')) {
+          setError('Backend server is not running. Please start the server and try again.');
+        } else {
+          setError(error.message || 'Failed to load business profile');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfileData();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      
+      if (!authData?.googleId) {
+        throw new Error('No authentication data available');
+      }
+
+      // Prepare business hours data
+      const businessHours = editData.businessDays.map(day => ({
+        weekday: daysOfWeek.indexOf(day),
+        start: editData.openingTime,
+        end: editData.closingTime,
+        isOpen: true
+      }));
+
+      // Update business hours via API
+      console.log('BusinessProfile: Fetching shop data for update, ownerId:', authData.googleId);
+      const shopResponse = await fetch(`http://localhost:3000/owner/${authData.googleId}/shop`);
+      
+      if (!shopResponse.ok) {
+        throw new Error(`Failed to fetch shop data: ${shopResponse.status} ${shopResponse.statusText}`);
+      }
+      
+      const shopResult = await shopResponse.json();
+      
+      if (shopResult.success) {
+        const shopId = shopResult.shop.id;
+        
+        // Update business hours
+        const hoursResponse = await fetch(`http://localhost:3000/shop/${shopId}/business-hours`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ businessHours })
+        });
+
+        if (!hoursResponse.ok) {
+          throw new Error('Failed to update business hours');
+        }
+      }
+
+      // Update profile data
+      setProfileData(editData);
+      setIsEditing(false);
+      
+      console.log('BusinessProfile: Changes saved successfully');
+    } catch (error) {
+      console.error('BusinessProfile: Error saving changes:', error);
+      setError(error.message || 'Failed to save changes');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -116,6 +256,59 @@ const BusinessProfile = () => {
   
   // Meteors component retained but Tailwind styles are used below
   const Meteors = () => null; 
+
+  // Show loading screen
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-500 rounded-full mb-4 animate-pulse">
+            <Building2 className="w-10 h-10 text-white" />
+          </div>
+          <h2 className="text-2xl font-semibold text-blue-800 mb-2">Loading Business Profile...</h2>
+          <p className="text-blue-600">Please wait while we fetch your business information.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error screen
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-red-500 rounded-full mb-4">
+            <Building2 className="w-10 h-10 text-white" />
+          </div>
+          <h2 className="text-2xl font-semibold text-red-800 mb-2">Error Loading Profile</h2>
+          <p className="text-red-600 mb-4">{error}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+            >
+              Try Again
+            </button>
+            {error.includes('Backend server is not running') && (
+              <button
+                onClick={() => {
+                  setError('');
+                  setIsLoading(true);
+                  // Retry the fetch
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1000);
+                }}
+                className="px-6 py-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors"
+              >
+                Start Server & Retry
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     // Background updated to blue/indigo gradient

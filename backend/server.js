@@ -502,6 +502,48 @@ app.patch("/shop/:shopId/business-hours", async (req, res) => {
     }
 });
 
+// Get all employees for a shop
+app.get("/shop/:shopId/employees", async (req, res) => {
+    try {
+        const { shopId } = req.params;
+
+        // Verify shop exists
+        const shopRef = db.collection("shops").doc(shopId);
+        const shopDoc = await shopRef.get();
+        
+        if (!shopDoc.exists) {
+            return res.status(404).json({ success: false, message: "Shop not found" });
+        }
+
+        // Get all employees for this shop
+        const employeesRef = db.collection("employees");
+        const employeesSnapshot = await employeesRef.where("shopId", "==", shopId).get();
+
+        const employees = employeesSnapshot.docs.map(doc => {
+            const data = doc.data();
+            // Remove password from response
+            const { password, ...safeData } = data;
+            return {
+                id: doc.id,
+                ...safeData,
+                createdAt: data.createdAt.toDate()
+            };
+        });
+
+        res.json({
+            success: true,
+            employees,
+            shop: {
+                id: shopId,
+                name: shopDoc.data().shopName
+            }
+        });
+    } catch (err) {
+        console.error("Get Employees Error:", err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
+
 app.post("/owner/add-employee", async (req, res) => {
     try {
         const { ownerId, shopId, name, email, phone, role, wage } = req.body;
@@ -554,6 +596,54 @@ app.post("/owner/add-employee", async (req, res) => {
         res.json({ success: true, message: "Employee onboarded and email sent" });
     } catch (err) {
         console.error("Employee Onboarding Error:", err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
+
+// Get complete business profile data (owner + shop) for BusinessProfile component
+app.get("/owner/:googleId/business-profile", async (req, res) => {
+    try {
+        const { googleId } = req.params;
+
+        // Get owner data
+        const ownerRef = db.collection("owners").doc(googleId);
+        const ownerDoc = await ownerRef.get();
+
+        if (!ownerDoc.exists) {
+            return res.status(404).json({ success: false, message: "Owner not found" });
+        }
+
+        const ownerData = ownerDoc.data();
+
+        // Get shop data
+        const shopsRef = db.collection("shops");
+        const shopSnapshot = await shopsRef.where("ownerId", "==", googleId).get();
+
+        let shopData = null;
+        if (!shopSnapshot.empty) {
+            const shopDoc = shopSnapshot.docs[0];
+            shopData = {
+                id: shopDoc.id,
+                ...shopDoc.data()
+            };
+        }
+
+        // Remove sensitive tokens from owner data
+        const { accessToken, refreshToken, ...safeOwnerData } = ownerData;
+
+        // Combine data for BusinessProfile component
+        const businessProfile = {
+            owner: safeOwnerData,
+            shop: shopData,
+            hasShop: !!shopData
+        };
+
+        res.json({ 
+            success: true, 
+            businessProfile 
+        });
+    } catch (err) {
+        console.error("Get Business Profile Error:", err);
         res.status(500).json({ success: false, message: "Server error" });
     }
 });
