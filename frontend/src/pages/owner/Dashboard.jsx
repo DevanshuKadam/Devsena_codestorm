@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import OwnerNavbar from '../../components/OwnerNavbar';
 // FIX: Replaced Lucide icons with their Heroicons V2 equivalent names.
 import { UsersIcon, CalendarDaysIcon, CheckCircleIcon, DocumentTextIcon, BuildingOffice2Icon, AcademicCapIcon } from '@heroicons/react/24/outline'; 
+import { QrCode } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import ShimmerCard from '../../components/ui/magic/ShimmerCard';
 import Particles from '../../components/ui/magic/Particles';
+import QRCodeGenerator from '../../components/QRCodeGenerator';
 
 // --- Magic UI Animated Counter Component (Simplified for this file) ---
 const AnimatedCounter = ({ value, label, icon: Icon, gradient = "from-blue-500 to-indigo-500" }) => (
@@ -35,6 +37,13 @@ const mockMetrics = {
 
 
 const Dashboard = () => {
+  const [showQRGenerator, setShowQRGenerator] = useState(false);
+  
+  // Mock owner and shop data - in real app, this would come from auth context
+  const mockOwnerId = 'mock_owner_123';
+  const mockShopId = 'mock_shop_456';
+  const mockShopName = 'My Coffee Shop';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
       <Particles count={100} />
@@ -130,10 +139,26 @@ const Dashboard = () => {
               <Button asChild className="w-full justify-start text-gray-700 bg-white/60 border border-blue-200 hover:bg-blue-100/70 transition-all shadow-sm">
                 <a href="/admin/business-profile" className="inline-flex items-center gap-2"><DocumentTextIcon className="w-4 h-4 text-green-600" /> Edit Business Profile</a>
               </Button>
+              <Button 
+                onClick={() => setShowQRGenerator(true)}
+                className="w-full justify-start text-gray-700 bg-white/60 border border-blue-200 hover:bg-blue-100/70 transition-all shadow-sm"
+              >
+                <QrCode className="w-4 h-4 text-purple-600 mr-2" />
+                Generate Punch-In QR
+              </Button>
             </div>
           </ShimmerCard>
         </div>
       </div>
+
+      {/* QR Code Generator Modal */}
+      <QRCodeGenerator
+        isOpen={showQRGenerator}
+        onClose={() => setShowQRGenerator(false)}
+        ownerId={mockOwnerId}
+        shopId={mockShopId}
+        shopName={mockShopName}
+      />
     </div>
   );
 };

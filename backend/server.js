@@ -6,10 +6,15 @@ import { google } from "googleapis";
 import { db } from "./firestore.js";
 import nodemailer from "nodemailer";
 import puppeteer from "puppeteer";
+import QRCode from "qrcode";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 
 const app = express();
+
+// JWT Secret for punch-in tokens (in production, use a secure random string)
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 app.use(cors());
 app.use(express.json());
@@ -625,6 +630,593 @@ app.delete("/calendar/events/:googleId/:eventId", async (req, res) => {
     }
 });
 
+// Generate punch-in QR token
+app.post("/punchin/generate", async (req, res) => {
+    try {
+        const { ownerId, shopId } = req.body;
+
+        // Validate required fields
+        if (!ownerId || !shopId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Owner ID and Shop ID are required" 
+            });
+        }
+
+        // Verify owner exists
+        const ownerRef = db.collection("owners").doc(ownerId);
+        const ownerDoc = await ownerRef.get();
+        if (!ownerDoc.exists) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Owner not found" 
+            });
+        }
+
+        // Verify shop exists and belongs to owner
+        const shopRef = db.collection("shops").doc(shopId);
+        const shopDoc = await shopRef.get();
+        if (!shopDoc.exists) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Shop not found" 
+            });
+        }
+
+        const shopData = shopDoc.data();
+        if (shopData.ownerId !== ownerId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "Shop does not belong to this owner" 
+            });
+        }
+
+        // Generate JWT token with 24-hour expiration
+        const tokenPayload = {
+            ownerId,
+            shopId,
+            shopName: shopData.shopName,
+            generatedAt: new Date().toISOString(),
+            type: 'punchin_qr'
+        };
+
+        const token = jwt.sign(tokenPayload, JWT_SECRET, { 
+            expiresIn: '24h' 
+        });
+
+        // Generate QR code as data URL
+        const qrCodeDataURL = await QRCode.toDataURL(token, {
+            width: 300,
+            margin: 2,
+            color: {
+                dark: '#000000',
+                light: '#FFFFFF'
+            }
+        });
+
+        // Store the token in database for validation (optional - for tracking)
+        const punchinTokenRef = db.collection("punchin_tokens").doc();
+        await punchinTokenRef.set({
+            tokenId: punchinTokenRef.id,
+            token,
+            ownerId,
+            shopId,
+            generatedAt: new Date(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+            isUsed: false,
+            usedAt: null
+        });
+
+        res.json({
+            success: true,
+            token,
+            qrCode: qrCodeDataURL,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            shopName: shopData.shopName
+        });
+
+    } catch (err) {
+        console.error("Generate Punch-in QR Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to generate punch-in QR code" 
+        });
+    }
+});
+
+// Employee authentication endpoint
+app.post("/employee/authenticate", async (req, res) => {
+    try {
+        const { employeeId, password } = req.body;
+        
+        if (!employeeId || !password) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Employee ID and password are required" 
+            });
+        }
+
+        // Fetch employee
+        const empRef = db.collection("employees").doc(employeeId);
+        const empDoc = await empRef.get();
+        
+        if (!empDoc.exists) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Employee not found" 
+            });
+        }
+
+        const employeeData = empDoc.data();
+        
+        // Verify password (in production, use proper password hashing)
+        if (employeeData.password !== password) {
+            return res.status(401).json({ 
+                success: false, 
+                message: "Invalid credentials" 
+            });
+        }
+
+        // Return employee data (without password)
+        const { password: _, ...safeEmployeeData } = employeeData;
+        
+        res.json({
+            success: true,
+            employee: {
+                id: employeeId,
+                ...safeEmployeeData
+            }
+        });
+    } catch (err) {
+        console.error("Employee Authentication Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Authentication failed" 
+        });
+    }
+});
+
+// Employee authentication middleware
+const authenticateEmployee = async (req, res, next) => {
+    try {
+        const { employeeId, password } = req.body;
+        
+        if (!employeeId || !password) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Employee ID and password are required" 
+            });
+        }
+
+        // Fetch employee
+        const empRef = db.collection("employees").doc(employeeId);
+        const empDoc = await empRef.get();
+        
+        if (!empDoc.exists) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Employee not found" 
+            });
+        }
+
+        const employeeData = empDoc.data();
+        
+        // Verify password (in production, use proper password hashing)
+        if (employeeData.password !== password) {
+            return res.status(401).json({ 
+                success: false, 
+                message: "Invalid credentials" 
+            });
+        }
+
+        // Add employee data to request
+        req.employee = {
+            id: employeeId,
+            ...employeeData
+        };
+        
+        next();
+    } catch (err) {
+        console.error("Employee Authentication Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Authentication failed" 
+        });
+    }
+};
+
+// Punch in scan API - verifies QR token and punches in employee
+app.post("/punchin/scan", authenticateEmployee, async (req, res) => {
+    try {
+        const { qrToken } = req.body;
+        const employee = req.employee;
+
+        if (!qrToken) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "QR token is required" 
+            });
+        }
+
+        // Verify JWT token
+        let decoded;
+        try {
+            decoded = jwt.verify(qrToken, JWT_SECRET);
+        } catch (jwtErr) {
+            return res.status(401).json({ 
+                success: false, 
+                message: "Invalid or expired QR token" 
+            });
+        }
+
+        // Check if token is for punch-in
+        if (decoded.type !== 'punchin_qr') {
+            return res.status(401).json({ 
+                success: false, 
+                message: "Invalid token type" 
+            });
+        }
+
+        // Verify employee belongs to the shop
+        if (employee.shopId !== decoded.shopId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "Employee does not belong to this shop" 
+            });
+        }
+
+        // Check if employee is already punched in today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const punchRecordsRef = db.collection("punch_records");
+        const existingPunchIn = await punchRecordsRef
+            .where("employeeId", "==", employee.id)
+            .where("shopId", "==", decoded.shopId)
+            .where("punchType", "==", "punchin")
+            .where("timestamp", ">=", today)
+            .where("timestamp", "<", tomorrow)
+            .get();
+
+        if (!existingPunchIn.empty) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Employee has already punched in today" 
+            });
+        }
+
+        // Create punch-in record
+        const punchRecordRef = db.collection("punch_records").doc();
+        const punchRecord = {
+            recordId: punchRecordRef.id,
+            employeeId: employee.id,
+            employeeName: employee.name,
+            shopId: decoded.shopId,
+            shopName: decoded.shopName,
+            ownerId: decoded.ownerId,
+            punchType: "punchin",
+            timestamp: new Date(),
+            qrToken: qrToken,
+            location: "QR Scan", // Could be enhanced with GPS coordinates
+            createdAt: new Date()
+        };
+
+        await punchRecordRef.set(punchRecord);
+
+        // Mark QR token as used (optional)
+        const punchinTokenRef = db.collection("punchin_tokens");
+        const tokenQuery = await punchinTokenRef
+            .where("token", "==", qrToken)
+            .where("isUsed", "==", false)
+            .get();
+
+        if (!tokenQuery.empty) {
+            const tokenDoc = tokenQuery.docs[0];
+            await tokenDoc.ref.update({
+                isUsed: true,
+                usedAt: new Date(),
+                usedBy: employee.id
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "Successfully punched in",
+            punchRecord: {
+                id: punchRecord.recordId,
+                employeeName: employee.name,
+                shopName: decoded.shopName,
+                punchType: "punchin",
+                timestamp: punchRecord.timestamp
+            }
+        });
+
+    } catch (err) {
+        console.error("Punch In Scan Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to process punch in" 
+        });
+    }
+});
+
+// Punch out API - for employee self punch out and owner manual punch out
+app.post("/punchout", async (req, res) => {
+    try {
+        const { employeeId, password, ownerId, shopId } = req.body;
+
+        let employee, shopIdToUse;
+
+        // Check if this is an owner manually punching out an employee
+        if (ownerId && shopId && !password) {
+            // Owner punch out - verify owner exists
+            const ownerRef = db.collection("owners").doc(ownerId);
+            const ownerDoc = await ownerRef.get();
+            
+            if (!ownerDoc.exists) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: "Owner not found" 
+                });
+            }
+
+            // Verify shop belongs to owner
+            const shopRef = db.collection("shops").doc(shopId);
+            const shopDoc = await shopRef.get();
+            
+            if (!shopDoc.exists || shopDoc.data().ownerId !== ownerId) {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: "Shop not found or does not belong to owner" 
+                });
+            }
+
+            // Get employee
+            const empRef = db.collection("employees").doc(employeeId);
+            const empDoc = await empRef.get();
+            
+            if (!empDoc.exists) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: "Employee not found" 
+                });
+            }
+
+            employee = { id: employeeId, ...empDoc.data() };
+            shopIdToUse = shopId;
+
+        } else {
+            // Employee self punch out - authenticate employee
+            if (!employeeId || !password) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: "Employee ID and password are required" 
+                });
+            }
+
+            const empRef = db.collection("employees").doc(employeeId);
+            const empDoc = await empRef.get();
+            
+            if (!empDoc.exists) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: "Employee not found" 
+                });
+            }
+
+            const employeeData = empDoc.data();
+            
+            if (employeeData.password !== password) {
+                return res.status(401).json({ 
+                    success: false, 
+                    message: "Invalid credentials" 
+                });
+            }
+
+            employee = { id: employeeId, ...employeeData };
+            shopIdToUse = employee.shopId;
+        }
+
+        // Check if employee has punched in today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const punchRecordsRef = db.collection("punch_records");
+        const punchInRecord = await punchRecordsRef
+            .where("employeeId", "==", employee.id)
+            .where("shopId", "==", shopIdToUse)
+            .where("punchType", "==", "punchin")
+            .where("timestamp", ">=", today)
+            .where("timestamp", "<", tomorrow)
+            .get();
+
+        if (punchInRecord.empty) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Employee has not punched in today" 
+            });
+        }
+
+        // Check if employee has already punched out today
+        const punchOutRecord = await punchRecordsRef
+            .where("employeeId", "==", employee.id)
+            .where("shopId", "==", shopIdToUse)
+            .where("punchType", "==", "punchout")
+            .where("timestamp", ">=", today)
+            .where("timestamp", "<", tomorrow)
+            .get();
+
+        if (!punchOutRecord.empty) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Employee has already punched out today" 
+            });
+        }
+
+        // Get shop information
+        const shopRef = db.collection("shops").doc(shopIdToUse);
+        const shopDoc = await shopRef.get();
+        const shopData = shopDoc.data();
+
+        // Create punch-out record
+        const punchRecordRef = db.collection("punch_records").doc();
+        const punchRecord = {
+            recordId: punchRecordRef.id,
+            employeeId: employee.id,
+            employeeName: employee.name,
+            shopId: shopIdToUse,
+            shopName: shopData.shopName,
+            ownerId: shopData.ownerId,
+            punchType: "punchout",
+            timestamp: new Date(),
+            location: ownerId ? "Manual (Owner)" : "Self",
+            punchedOutBy: ownerId || null,
+            createdAt: new Date()
+        };
+
+        await punchRecordRef.set(punchRecord);
+
+        // Calculate work hours
+        const punchInTime = punchInRecord.docs[0].data().timestamp.toDate();
+        const punchOutTime = new Date();
+        const workHours = (punchOutTime - punchInTime) / (1000 * 60 * 60); // Convert to hours
+
+        res.json({
+            success: true,
+            message: "Successfully punched out",
+            punchRecord: {
+                id: punchRecord.recordId,
+                employeeName: employee.name,
+                shopName: shopData.shopName,
+                punchType: "punchout",
+                timestamp: punchRecord.timestamp,
+                workHours: Math.round(workHours * 100) / 100 // Round to 2 decimal places
+            }
+        });
+
+    } catch (err) {
+        console.error("Punch Out Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to process punch out" 
+        });
+    }
+});
+
+// Get punch records for an employee
+app.get("/employee/:employeeId/punch-records", async (req, res) => {
+    try {
+        const { employeeId } = req.params;
+        const { startDate, endDate, limit = 50 } = req.query;
+
+        // Verify employee exists
+        const empRef = db.collection("employees").doc(employeeId);
+        const empDoc = await empRef.get();
+        
+        if (!empDoc.exists) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Employee not found" 
+            });
+        }
+
+        let query = db.collection("punch_records")
+            .where("employeeId", "==", employeeId)
+            .orderBy("timestamp", "desc")
+            .limit(parseInt(limit));
+
+        // Add date filters if provided
+        if (startDate) {
+            query = query.where("timestamp", ">=", new Date(startDate));
+        }
+        if (endDate) {
+            query = query.where("timestamp", "<=", new Date(endDate));
+        }
+
+        const punchRecordsSnapshot = await query.get();
+        const punchRecords = punchRecordsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            timestamp: doc.data().timestamp.toDate()
+        }));
+
+        res.json({
+            success: true,
+            punchRecords,
+            employee: {
+                id: employeeId,
+                name: empDoc.data().name,
+                email: empDoc.data().email
+            }
+        });
+
+    } catch (err) {
+        console.error("Get Punch Records Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to get punch records" 
+        });
+    }
+});
+
+// Get all punch records for a shop (owner view)
+app.get("/shop/:shopId/punch-records", async (req, res) => {
+    try {
+        const { shopId } = req.params;
+        const { startDate, endDate, limit = 100 } = req.query;
+
+        // Verify shop exists
+        const shopRef = db.collection("shops").doc(shopId);
+        const shopDoc = await shopRef.get();
+        
+        if (!shopDoc.exists) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Shop not found" 
+            });
+        }
+
+        let query = db.collection("punch_records")
+            .where("shopId", "==", shopId)
+            .orderBy("timestamp", "desc")
+            .limit(parseInt(limit));
+
+        // Add date filters if provided
+        if (startDate) {
+            query = query.where("timestamp", ">=", new Date(startDate));
+        }
+        if (endDate) {
+            query = query.where("timestamp", "<=", new Date(endDate));
+        }
+
+        const punchRecordsSnapshot = await query.get();
+        const punchRecords = punchRecordsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            timestamp: doc.data().timestamp.toDate()
+        }));
+
+        res.json({
+            success: true,
+            punchRecords,
+            shop: {
+                id: shopId,
+                name: shopDoc.data().shopName
+            }
+        });
+
+    } catch (err) {
+        console.error("Get Shop Punch Records Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to get punch records" 
+        });
+    }
+});
 
 app.listen(3000, () => {
     console.log(`Server is running on port 3000`);
