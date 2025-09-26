@@ -26,7 +26,7 @@ const Navbar = () => {
             to="/"
             className="text-2xl font-bold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent tracking-wide hover:from-blue-600 hover:to-indigo-500 transition-all duration-300"
           >
-            WorkWise
+            WorkWise Employee Portal
           </Link>
 
           {/* Navigation Links */}

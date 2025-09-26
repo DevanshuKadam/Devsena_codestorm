@@ -1,87 +1,134 @@
 import React from 'react';
 import OwnerNavbar from '../../components/OwnerNavbar';
-import { Card } from '../../components/ui/card';
+// FIX: Replaced Lucide icons with their Heroicons V2 equivalent names.
+import { UsersIcon, CalendarDaysIcon, CheckCircleIcon, DocumentTextIcon, BuildingOffice2Icon, AcademicCapIcon } from '@heroicons/react/24/outline'; 
 import { Button } from '../../components/ui/button';
-import { Users, Calendar, Brain, FileText, Building2 } from 'lucide-react';
 import ShimmerCard from '../../components/ui/magic/ShimmerCard';
 import Particles from '../../components/ui/magic/Particles';
 
+// --- Magic UI Animated Counter Component (Simplified for this file) ---
+const AnimatedCounter = ({ value, label, icon: Icon, gradient = "from-blue-500 to-indigo-500" }) => (
+  <div className="relative group">
+    <div className={`absolute inset-0 bg-gradient-to-r ${gradient} rounded-2xl blur opacity-20 group-hover:opacity-40 transition-opacity duration-300`}></div>
+    <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-xl">
+      <div className="flex items-center justify-between mb-3">
+        <div className={`p-3 rounded-xl bg-gradient-to-r ${gradient}`}>
+          <Icon className="w-5 h-5 text-white" />
+        </div>
+        <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+        </svg>
+      </div>
+      <div className="text-2xl font-bold text-gray-900 mb-1">{value}</div>
+      <div className="text-sm text-gray-600">{label}</div>
+    </div>
+  </div>
+);
+// ---------------------------------------------------------------------
+
+const mockMetrics = {
+    totalEmployees: 8,
+    openPositions: 2,
+    nextWeekShifts: 42,
+    pendingApprovals: 3,
+};
+
+
 const Dashboard = () => {
   return (
-    <div className="min-h-screen bg-twine-50 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
       <Particles count={100} />
       <OwnerNavbar />
 
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="relative z-10 pt-24 p-6 max-w-7xl mx-auto">
+        
+        {/* Header Card with Glassmorphism (Icon changed to Heroicon equivalent) */}
         <ShimmerCard className="mb-8 backdrop-blur-xl bg-white/70">
           <div className="p-8 flex items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-twine-500 to-twine-700 shadow-lg">
-                <Building2 className="w-8 h-8 text-white" />
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-700 shadow-lg">
+                <BuildingOffice2Icon className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-twine-800 to-twine-600 bg-clip-text text-transparent">Dashboard</h1>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent">
+                  Owner Dashboard
+                </h1>
                 <p className="text-gray-600 mt-1">Overview of your business, staff, and schedules</p>
               </div>
             </div>
           </div>
         </ShimmerCard>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="p-6 backdrop-blur-sm bg-white/80">
-            <p className="text-sm text-twine-600">Total Employees</p>
-            <p className="text-3xl font-bold text-twine-800 mt-2">8</p>
-          </Card>
-          <Card className="p-6 backdrop-blur-sm bg-white/80">
-            <p className="text-sm text-twine-600">Open Positions</p>
-            <p className="text-3xl font-bold text-twine-800 mt-2">2</p>
-          </Card>
-          <Card className="p-6 backdrop-blur-sm bg-white/80">
-            <p className="text-sm text-twine-600">Next Week Shifts</p>
-            <p className="text-3xl font-bold text-twine-800 mt-2">42</p>
-          </Card>
-          <Card className="p-6 backdrop-blur-sm bg-white/80">
-            <p className="text-sm text-twine-600">Pending Approvals</p>
-            <p className="text-3xl font-bold text-twine-800 mt-2">3</p>
-          </Card>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <AnimatedCounter 
+            value={mockMetrics.totalEmployees} 
+            label="Total Employees" 
+            icon={UsersIcon} // Updated icon name
+            gradient="from-blue-500 to-blue-700"
+          />
+          <AnimatedCounter 
+            value={mockMetrics.openPositions} 
+            label="Open Positions" 
+            icon={DocumentTextIcon} // Updated icon name (used DocumentTextIcon for FileText)
+            gradient="from-indigo-500 to-indigo-700" 
+          />
+          <AnimatedCounter 
+            value={mockMetrics.nextWeekShifts} 
+            label="Next Week Shifts" 
+            icon={CalendarDaysIcon} // Updated icon name
+            gradient="from-indigo-500 to-indigo-700" 
+          />
+          <AnimatedCounter 
+            value={mockMetrics.pendingApprovals} 
+            label="Pending Approvals" 
+            icon={CheckCircleIcon} 
+            gradient="from-purple-500 to-purple-700" 
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Upcoming Shifts Card */}
           <ShimmerCard className="p-6 lg:col-span-2 backdrop-blur-sm bg-white/80">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-twine-600" />
-                <h2 className="text-xl font-semibold text-twine-800">Upcoming Shifts</h2>
+                <CalendarDaysIcon className="w-5 h-5 text-blue-600" /> {/* Updated icon name */}
+                <h2 className="text-xl font-semibold text-gray-900">Upcoming Shifts</h2>
               </div>
-              <Button asChild className="bg-gradient-to-r from-twine-500 to-twine-600 hover:from-twine-600 hover:to-twine-700">
+              <Button asChild className="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-full shadow-md hover:from-indigo-600 hover:to-blue-500 transition-all">
                 <a href="/admin/schedule-dashboard">View Scheduler</a>
               </Button>
             </div>
-            <div className="space-y-2">
-              {["Mon 9-5 Cashier", "Tue 10-6 Stock"]?.map((s, i) => (
-                <div key={i} className="p-3 border border-twine-200 rounded-xl text-twine-800 bg-white/60">
+            <div className="space-y-3">
+              {["Mon 9-5 Cashier", "Tue 10-6 Stock", "Sat 8-4 Barista"]?.map((s, i) => (
+                <div 
+                  key={i} 
+                  className="p-4 bg-blue-50/70 rounded-lg border border-blue-200 shadow-sm flex justify-between items-center hover:bg-blue-100 transition cursor-pointer text-gray-800 font-medium"
+                >
                   {s}
                 </div>
               ))}
             </div>
           </ShimmerCard>
 
+          {/* Quick Actions Card */}
           <ShimmerCard className="p-6 backdrop-blur-sm bg-white/80">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-twine-600" />
-                <h2 className="text-xl font-semibold text-twine-800">Quick Actions</h2>
+                <UsersIcon className="w-5 h-5 text-indigo-600" /> {/* Updated icon name */}
+                <h2 className="text-xl font-semibold text-gray-900">Quick Actions</h2>
               </div>
             </div>
             <div className="space-y-3">
-              <Button asChild variant="outline" className="w-full justify-start">
-                <a href="/admin/staff-management" className="inline-flex items-center gap-2"><Users className="w-4 h-4" /> Manage Staff</a>
+              <Button asChild className="w-full justify-start text-gray-700 bg-white/60 border border-blue-200 hover:bg-blue-100/70 transition-all shadow-sm">
+                <a href="/admin/staff-management" className="inline-flex items-center gap-2"><UsersIcon className="w-4 h-4 text-blue-600" /> Manage Staff</a>
               </Button>
-              <Button asChild variant="outline" className="w-full justify-start">
-                <a href="/admin/schedule-dashboard" className="inline-flex items-center gap-2"><Brain className="w-4 h-4" /> Generate AI Schedule</a>
+              <Button asChild className="w-full justify-start text-gray-700 bg-white/60 border border-blue-200 hover:bg-blue-100/70 transition-all shadow-sm">
+                {/* FIX APPLIED HERE: Replaced Brain with AcademicCapIcon */}
+                <a href="/admin/schedule-dashboard" className="inline-flex items-center gap-2"><AcademicCapIcon className="w-4 h-4 text-indigo-600" /> Generate AI Schedule</a>
               </Button>
-              <Button asChild variant="outline" className="w-full justify-start">
-                <a href="/admin/business-profile" className="inline-flex items-center gap-2"><FileText className="w-4 h-4" /> Edit Business Profile</a>
+              <Button asChild className="w-full justify-start text-gray-700 bg-white/60 border border-blue-200 hover:bg-blue-100/70 transition-all shadow-sm">
+                <a href="/admin/business-profile" className="inline-flex items-center gap-2"><DocumentTextIcon className="w-4 h-4 text-green-600" /> Edit Business Profile</a>
               </Button>
             </div>
           </ShimmerCard>
@@ -92,5 +139,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-

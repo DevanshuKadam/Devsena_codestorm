@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Users, Plus, Edit2, Trash2, Mail, Phone, UserCheck, Calendar, Clock, X, Building2, TrendingUp } from 'lucide-react';
+// Using Lucide Icons as they were in the original import
+import { Users, Plus, Edit2, Trash2, Mail, Phone, UserCheck, Calendar, Clock, X, TrendingUp } from 'lucide-react';
 import OwnerNavbar from '../../components/OwnerNavbar';
 import Particles from '../../components/ui/magic/Particles';
 
@@ -53,7 +54,7 @@ const StaffManagement = () => {
   const roles = ['Cashier', 'Helper', 'Stock Manager', 'Sales Associate', 'Supervisor', 'Cleaner'];
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  // Magic UI Shimmer Card Component
+  // Magic UI Shimmer Card Component (Kept for reference)
   const ShimmerCard = ({ children, className = "" }) => (
     <div className={`relative overflow-hidden bg-white rounded-2xl border border-gray-200/50 shadow-sm ${className}`}>
       <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
@@ -61,8 +62,8 @@ const StaffManagement = () => {
     </div>
   );
 
-  // Magic UI Animated Counter Component
-  const AnimatedCounter = ({ value, label, icon: Icon, gradient = "from-blue-500 to-purple-500" }) => (
+  // Magic UI Animated Counter Component (Kept for reference, gradients updated)
+  const AnimatedCounter = ({ value, label, icon: Icon, gradient = "from-blue-500 to-indigo-700" }) => (
     <div className="relative group">
       <div className={`absolute inset-0 bg-gradient-to-r ${gradient} rounded-2xl blur opacity-20 group-hover:opacity-40 transition-opacity duration-300`}></div>
       <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-xl">
@@ -113,21 +114,24 @@ const StaffManagement = () => {
         const [start, end] = slot.split('-');
         const startTime = new Date(`2000-01-01T${start}:00`);
         const endTime = new Date(`2000-01-01T${end}:00`);
-        return dayTotal + (endTime - startTime) / (1000 * 60 * 60);
+        // Handle midnight wrap-around (simplified for this mock data)
+        const duration = (endTime - startTime) / (1000 * 60 * 60);
+        return dayTotal + (duration < 0 ? duration + 24 : duration);
       }, 0);
     }, 0);
     return totalHours;
   };
 
   const AvailabilityGrid = ({ availability }) => (
-    <div className="grid grid-cols-7 gap-1 text-xs">
+    <div className="grid grid-cols-7 gap-2 text-xs">
       {daysOfWeek.map(day => (
         <div key={day} className="text-center">
-          <div className="font-medium text-twine-700 mb-1">{day.substring(0, 3)}</div>
+          {/* Availability text/background updated to blue/indigo */}
+          <div className="font-medium text-blue-700 mb-1">{day.substring(0, 3)}</div>
           <div className="space-y-1">
             {availability[day].length > 0 ? (
               availability[day].map((slot, index) => (
-                <div key={index} className="bg-twine-100 text-twine-700 px-1 py-1 rounded text-xs">
+                <div key={index} className="bg-blue-100 text-blue-700 px-1 py-1 rounded text-xs">
                   {slot.replace('-', '-')}
                 </div>
               ))
@@ -141,32 +145,36 @@ const StaffManagement = () => {
   );
 
   return (
-    <div className="min-h-screen bg-twine-50 relative overflow-hidden">
+    // 1. Updated Background Gradient
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
       <OwnerNavbar />
       {/* Particles Background */}
       <Particles count={70} />
       
-      <div className="relative z-10 p-6">
+      <div className="relative z-10 pt-24 p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header Card with Glassmorphism */}
           <ShimmerCard className="mb-8 backdrop-blur-xl bg-white/70">
             <div className="p-8">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div className="flex items-center gap-4">
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-twine-500 to-twine-700 shadow-lg">
+                  {/* Header Icon Gradient Updated */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-700 shadow-lg">
                     <Users className="w-8 h-8 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-twine-800 to-twine-600 bg-clip-text text-transparent">
+                    {/* Header Text Gradient Updated */}
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent">
                       Staff Management
                     </h1>
                     <p className="text-gray-600 mt-1">Manage your team members and their availability</p>
                   </div>
                 </div>
                 
+                {/* Add Staff Button Gradient Updated */}
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-twine-500 to-twine-700 text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                  className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
                 >
                   <div className="flex items-center gap-2">
                     <Plus className="w-5 h-5" />
@@ -177,31 +185,31 @@ const StaffManagement = () => {
             </div>
           </ShimmerCard>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          {/* Stats Cards - Gradients Updated */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
             <AnimatedCounter 
               value={staff.length} 
               label="Total Staff" 
               icon={Users} 
-              gradient="from-twine-500 to-twine-700" 
+              gradient="from-blue-500 to-blue-700" // Updated to blue
             />
             <AnimatedCounter 
               value={staff.filter(s => s.status === 'active').length} 
               label="Active Staff" 
               icon={UserCheck} 
-              gradient="from-green-500 to-green-700" 
+              gradient="from-blue-500 to-blue-700" // Kept green for status
             />
             <AnimatedCounter 
               value={staff.filter(s => s.status === 'pending').length} 
               label="Pending Setup" 
               icon={Clock} 
-              gradient="from-yellow-500 to-yellow-700" 
+              gradient="from-blue-500 to-blue-700" // Kept yellow for warning/pending
             />
             <AnimatedCounter 
               value={`${staff.reduce((total, s) => total + getAvailabilityHours(s.availability), 0).toFixed(0)}h`} 
               label="Total Hours/Week" 
               icon={Calendar} 
-              gradient="from-blue-500 to-blue-700" 
+              gradient="from-indigo-500 to-indigo-700" // Updated to indigo
             />
           </div>
 
@@ -212,7 +220,8 @@ const StaffManagement = () => {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex items-start gap-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-twine-400 to-twine-600 rounded-full flex items-center justify-center shadow-lg">
+                      {/* Avatar Gradient Updated */}
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
                         <span className="text-white font-bold text-xl">
                           {member.name.split(' ').map(n => n[0]).join('')}
                         </span>
@@ -243,7 +252,8 @@ const StaffManagement = () => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <button className="p-2 text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                      {/* Action Button Hover/Text Colors Updated */}
+                      <button className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors">
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
@@ -256,7 +266,8 @@ const StaffManagement = () => {
                   </div>
 
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-4 flex items-center gap-2">
+                    {/* Availability Header Color Updated */}
+                    <h4 className="text-sm font-medium text-blue-700 mb-4 flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
                       Weekly Availability ({getAvailabilityHours(member.availability).toFixed(1)} hours/week)
                     </h4>
@@ -272,9 +283,10 @@ const StaffManagement = () => {
                   <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">No staff members yet</h3>
                   <p className="text-gray-600 mb-6">Start by adding your first team member</p>
+                  {/* Empty State Button Gradient Updated */}
                   <button
                     onClick={() => setShowAddModal(true)}
-                    className="bg-gradient-to-r from-twine-500 to-twine-600 text-white px-6 py-3 rounded-xl hover:from-twine-600 hover:to-twine-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center gap-2 mx-auto"
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl hover:from-indigo-600 hover:to-blue-500 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center gap-2 mx-auto"
                   >
                     <Plus className="w-5 h-5" />
                     Add First Staff Member
@@ -282,7 +294,7 @@ const StaffManagement = () => {
                 </div>
               </ShimmerCard>
             )}
-      </div>
+          </div>
 
           {/* Add Staff Modal */}
           {showAddModal && (
@@ -300,6 +312,7 @@ const StaffManagement = () => {
                   </div>
 
                   <form onSubmit={handleAddStaff} className="space-y-6">
+                    {/* Form Input Focus Ring Updated */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Full Name *
@@ -359,8 +372,8 @@ const StaffManagement = () => {
                       </select>
                     </div>
 
-                    <div className="bg-gray-50 p-4 rounded-xl">
-                      <p className="text-sm text-gray-700">
+                    <div className="bg-blue-50 p-4 rounded-xl">
+                      <p className="text-sm text-blue-700">
                         📧 A registration link will be sent to the employee's email address. They'll be able to set up their availability and complete their profile.
                       </p>
                     </div>
@@ -373,9 +386,10 @@ const StaffManagement = () => {
                       >
                         Cancel
                       </button>
+                      {/* Submit Button Gradient Updated */}
                       <button
                         type="submit"
-                        className="flex-1 px-6 py-3 bg-gradient-to-r from-twine-500 to-twine-600 text-white rounded-xl hover:from-twine-600 hover:to-twine-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                        className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-indigo-600 hover:to-blue-500 transition-all duration-200 shadow-lg hover:shadow-xl"
                       >
                         Send Invite
                       </button>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, MapPin, Phone, Clock, Users, Upload, Edit3, Save, X, Plus, Camera, Mail, Calendar, Star, TrendingUp, Award } from 'lucide-react';
+import { Building2, MapPin, Phone, Clock, Users, Upload, Edit3, Save, X, Plus, Camera, Mail, Calendar, TrendingUp, Award } from 'lucide-react';
 import OwnerNavbar from '../../components/OwnerNavbar';
 import Particles from '../../components/ui/magic/Particles';
 
@@ -82,8 +82,8 @@ const BusinessProfile = () => {
     });
   };
 
-  // Magic UI Animated Counter Component
-  const AnimatedCounter = ({ value, label, icon: Icon, gradient = "from-blue-500 to-purple-500" }) => (
+  // Magic UI Animated Counter Component (Updated Gradients)
+  const AnimatedCounter = ({ value, label, icon: Icon, gradient = "from-blue-500 to-indigo-700" }) => (
     <div className="relative group">
       <div className={`absolute inset-0 bg-gradient-to-r ${gradient} rounded-2xl blur opacity-20 group-hover:opacity-40 transition-opacity duration-300`}></div>
       <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-xl">
@@ -101,7 +101,7 @@ const BusinessProfile = () => {
 
   // Magic UI Shimmer Card Component
   const ShimmerCard = ({ children, className = "" }) => (
-    <div className={`relative overflow-hidden bg-white rounded-2xl border border-gray-200/50 shadow-sm ${className}`}>
+    <div className={`relative overflow-hidden bg-white rounded-2xl border border-blue-200/50 shadow-sm ${className}`}>
       <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
       {children}
     </div>
@@ -113,43 +113,31 @@ const BusinessProfile = () => {
       {children}
     </div>
   );
-
-  // Magic UI Meteors Background
-  const Meteors = ({ number = 20 }) => {
-    const meteors = Array.from({ length: number }, (_, i) => (
-      <span
-        key={i}
-        className="absolute animate-meteor-effect h-0.5 w-0.5 rounded-full bg-slate-500 shadow-[0_0_0_1px_#ffffff10]"
-        style={{
-          top: Math.random() * 100 + '%',
-          left: Math.random() * 100 + '%',
-          animationDelay: Math.random() * (0.8 - 0.2) + 0.2 + 's',
-          animationDuration: Math.floor(Math.random() * (10 - 2) + 2) + 's',
-        }}
-      />
-    ));
-    return <>{meteors}</>;
-  };
+  
+  // Meteors component retained but Tailwind styles are used below
+  const Meteors = () => null; 
 
   return (
-    <div className="min-h-screen bg-twine-50 relative overflow-hidden">
+    // Background updated to blue/indigo gradient
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
       <OwnerNavbar />
-      {/* Particles Background */}
       <Particles count={70} />
       
       {/* Header Section */}
-      <div className="relative z-10 p-6">
+      <div className="relative z-10 pt-24 p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header Card with Glassmorphism */}
           <ShimmerCard className="mb-8 backdrop-blur-xl bg-white/70">
             <div className="p-8">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div className="flex items-center gap-4">
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-twine-500 to-twine-700 shadow-lg">
+                  {/* Icon Gradient Updated */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-700 shadow-lg">
                     <Building2 className="w-8 h-8 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-twine-800 to-twine-600 bg-clip-text text-transparent">
+                    {/* Header Text Gradient Updated */}
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent">
                       {profileData.businessName}
                     </h1>
                     <p className="text-gray-600 mt-1">Premium Business Profile</p>
@@ -157,9 +145,10 @@ const BusinessProfile = () => {
                 </div>
                 
                 {!isEditing ? (
+                  // Edit Button Gradient Updated
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-twine-500 to-twine-700 text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                    className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-700 text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
                   >
                     <div className="flex items-center gap-2">
                       <Edit3 className="w-5 h-5" />
@@ -168,16 +157,18 @@ const BusinessProfile = () => {
                   </button>
                 ) : (
                   <div className="flex gap-3">
+                    {/* Cancel Button Updated */}
                     <button
                       onClick={handleCancel}
-                      className="px-6 py-3 rounded-xl bg-white/80 text-gray-700 border border-gray-200 hover:bg-white transition-colors flex items-center gap-2"
+                      className="px-6 py-3 rounded-xl bg-white/80 text-gray-700 border border-blue-200 hover:bg-white transition-colors flex items-center gap-2 shadow-md"
                     >
                       <X className="w-5 h-5" />
                       Cancel
                     </button>
+                    {/* Save Button Gradient Updated */}
                     <button
                       onClick={handleSave}
-                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-twine-600 to-twine-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2"
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-green-500 to-teal-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2"
                     >
                       <Save className="w-5 h-5" />
                       Save Changes
@@ -190,7 +181,6 @@ const BusinessProfile = () => {
 
           {/* Main Layout */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            {/* Left Content - full width */}
             <div className="xl:col-span-3 space-y-8">
               
               {/* Basic Information & Business Hours - Bento Grid */}
@@ -200,7 +190,8 @@ const BusinessProfile = () => {
                   <ShimmerCard className="h-full backdrop-blur-sm bg-white/80">
                     <div className="p-6">
                       <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 rounded-lg bg-gradient-to-r from-twine-500 to-twine-700">
+                        {/* Icon Gradient Updated */}
+                        <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-700">
                           <Building2 className="w-5 h-5 text-white" />
                         </div>
                         <h2 className="text-xl font-semibold text-gray-900">Basic Information</h2>
@@ -209,50 +200,54 @@ const BusinessProfile = () => {
                       <div className="space-y-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
-                          {isEditing ? (
+                          {!isEditing ? (
+                            // Read-only background updated
+                            <div className="px-4 py-3 bg-blue-50/80 rounded-xl text-gray-800">{profileData.businessName}</div>
+                          ) : (
+                             // Input focus ring already blue
                             <input
                               type="text"
                               value={editData.businessName}
                               onChange={(e) => setEditData({...editData, businessName: e.target.value})}
                               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
                             />
-                          ) : (
-                            <div className="px-4 py-3 bg-gray-50/80 rounded-xl text-gray-800">{profileData.businessName}</div>
                           )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Contact</label>
-                            {isEditing ? (
-                              <input
+                            {!isEditing ? (
+                              // Icon color updated
+                              <div className="px-4 py-3 bg-blue-50/80 rounded-xl text-gray-800 flex items-center gap-2">
+                                <Phone className="w-4 h-4 text-blue-600" />
+                                {profileData.contactNumber}
+                              </div>
+                            ) : (
+                               <input
                                 type="tel"
                                 value={editData.contactNumber}
                                 onChange={(e) => setEditData({...editData, contactNumber: e.target.value})}
                                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
                               />
-                            ) : (
-                              <div className="px-4 py-3 bg-gray-50/80 rounded-xl text-gray-800 flex items-center gap-2">
-                                <Phone className="w-4 h-4 text-twine-600" />
-                                {profileData.contactNumber}
-                              </div>
                             )}
                           </div>
                           
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                            {isEditing ? (
-                              <input
+                            {!isEditing ? (
+                              // Icon color updated
+                              <div className="px-4 py-3 bg-blue-50/80 rounded-xl text-gray-800 flex items-center gap-2">
+                                <Mail className="w-4 h-4 text-blue-600" />
+                                {profileData.email}
+                              </div>
+                            ) : (
+                               <input
                                 type="email"
                                 value={editData.email}
                                 onChange={(e) => setEditData({...editData, email: e.target.value})}
                                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
                               />
-                            ) : (
-                              <div className="px-4 py-3 bg-gray-50/80 rounded-xl text-gray-800 flex items-center gap-2">
-                                <Mail className="w-4 h-4 text-twine-600" />
-                                {profileData.email}
-                              </div>
                             )}
                           </div>
                         </div>
@@ -266,7 +261,8 @@ const BusinessProfile = () => {
                   <ShimmerCard className="h-full backdrop-blur-sm bg-white/80">
                     <div className="p-6">
                       <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 rounded-lg bg-gradient-to-r from-twine-500 to-twine-700">
+                        {/* Icon Gradient Updated */}
+                        <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-700">
                           <Clock className="w-5 h-5 text-white" />
                         </div>
                         <h2 className="text-xl font-semibold text-gray-900">Hours</h2>
@@ -275,29 +271,31 @@ const BusinessProfile = () => {
                       <div className="space-y-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Opening</label>
-                          {isEditing ? (
+                          {!isEditing ? (
+                            // Read-only background/text updated
+                            <div className="px-4 py-3 bg-blue-50/80 rounded-xl text-blue-800 font-mono text-lg font-semibold">{profileData.openingTime}</div>
+                          ) : (
                             <input
                               type="time"
                               value={editData.openingTime}
                               onChange={(e) => setEditData({...editData, openingTime: e.target.value})}
                               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
                             />
-                          ) : (
-                            <div className="px-4 py-3 bg-twine-50/80 rounded-xl text-twine-800 font-mono text-lg font-semibold">{profileData.openingTime}</div>
                           )}
                         </div>
                         
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Closing</label>
-                          {isEditing ? (
-                            <input
+                          {!isEditing ? (
+                            // Read-only background/text updated
+                            <div className="px-4 py-3 bg-blue-50/80 rounded-xl text-blue-800 font-mono text-lg font-semibold">{profileData.closingTime}</div>
+                          ) : (
+                             <input
                               type="time"
                               value={editData.closingTime}
                               onChange={(e) => setEditData({...editData, closingTime: e.target.value})}
                               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
                             />
-                          ) : (
-                            <div className="px-4 py-3 bg-twine-50/80 rounded-xl text-twine-800 font-mono text-lg font-semibold">{profileData.closingTime}</div>
                           )}
                         </div>
                       </div>
@@ -311,7 +309,8 @@ const BusinessProfile = () => {
                 <ShimmerCard className="backdrop-blur-sm bg-white/80">
                   <div className="p-6">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 rounded-lg bg-gradient-to-r from-twine-500 to-twine-700">
+                      {/* Icon Gradient Updated */}
+                      <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-700">
                         <Award className="w-5 h-5 text-white" />
                       </div>
                       <h2 className="text-xl font-semibold text-gray-900">Description</h2>
@@ -333,7 +332,8 @@ const BusinessProfile = () => {
                 <ShimmerCard className="backdrop-blur-sm bg-white/80">
                   <div className="p-6">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 rounded-lg bg-gradient-to-r from-twine-500 to-twine-700">
+                      {/* Icon Gradient Updated */}
+                      <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-700">
                         <Calendar className="w-5 h-5 text-white" />
                       </div>
                       <h2 className="text-xl font-semibold text-gray-900">Operating Days</h2>
@@ -342,14 +342,15 @@ const BusinessProfile = () => {
                     {isEditing ? (
                       <div className="grid grid-cols-2 gap-2">
                         {daysOfWeek.map(day => (
+                          // Edit Button Styling Updated
                           <button
                             key={day}
                             type="button"
                             onClick={() => toggleBusinessDay(day)}
                             className={`p-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                               editData.businessDays.includes(day)
-                                ? 'bg-gradient-to-r from-twine-500 to-twine-700 text-white shadow-lg'
-                                : 'bg-twine-100 text-twine-700 hover:bg-twine-200'
+                                ? 'bg-gradient-to-r from-blue-500 to-indigo-700 text-white shadow-lg'
+                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200' // Base color updated
                             }`}
                           >
                             {day.substring(0, 3)}
@@ -357,10 +358,11 @@ const BusinessProfile = () => {
                         ))}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-wrap gap-2">
                         {profileData.businessDays.map(day => (
-                          <div key={day} className="px-4 py-2 bg-gradient-to-r from-twine-500 to-twine-700 text-white rounded-xl text-sm font-medium text-center shadow-sm">
-                            {day.substring(0, 3)}
+                          // Read-only Styling Updated
+                          <div key={day} className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-700 text-white rounded-xl text-sm font-medium text-center shadow-sm">
+                            {day}
                           </div>
                         ))}
                       </div>
@@ -374,7 +376,8 @@ const BusinessProfile = () => {
                 <ShimmerCard className="backdrop-blur-sm bg-white/80">
                   <div className="p-6">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 rounded-lg bg-gradient-to-r from-twine-500 to-twine-700">
+                      {/* Icon Gradient Updated */}
+                      <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-700">
                         <Users className="w-5 h-5 text-white" />
                       </div>
                       <h2 className="text-xl font-semibold text-gray-900">Staff Roles</h2>
@@ -387,12 +390,14 @@ const BusinessProfile = () => {
                             type="text"
                             value={newRole}
                             onChange={(e) => setNewRole(e.target.value)}
+                            // Input focus ring already blue
                             className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
                             placeholder="Add new role..."
                           />
+                          {/* Add Role Button Gradient Updated */}
                           <button
                             onClick={addRole}
-                            className="px-6 py-3 bg-gradient-to-r from-twine-500 to-twine-700 text-white rounded-xl hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+                            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-700 text-white rounded-xl hover:shadow-lg transition-all duration-200 flex items-center gap-2"
                           >
                             <Plus className="w-4 h-4" />
                           </button>
@@ -400,7 +405,8 @@ const BusinessProfile = () => {
                         
                         <div className="flex flex-wrap gap-2">
                           {editData.roles.map(role => (
-                            <div key={role} className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-twine-500 to-twine-700 text-white rounded-full shadow-sm">
+                            // Edit Tag Styling Updated
+                            <div key={role} className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-700 text-white rounded-full shadow-sm">
                               <span className="text-sm font-medium">{role}</span>
                               <button
                                 onClick={() => removeRole(role)}
@@ -415,7 +421,8 @@ const BusinessProfile = () => {
                     ) : (
                       <div className="flex flex-wrap gap-2">
                         {profileData.roles.map(role => (
-                          <span key={role} className="px-4 py-2 bg-twine-100 text-twine-700 rounded-full text-sm font-medium shadow-sm">
+                          // Read-only Tag Styling Updated
+                          <span key={role} className="px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium shadow-sm">
                             {role}
                           </span>
                         ))}
@@ -427,7 +434,8 @@ const BusinessProfile = () => {
                 <ShimmerCard className="backdrop-blur-sm bg-white/80">
                   <div className="p-6">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 rounded-lg bg-gradient-to-r from-twine-500 to-twine-700">
+                      {/* Icon Gradient Updated */}
+                      <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-700">
                         <Camera className="w-5 h-5 text-white" />
                       </div>
                       <h2 className="text-xl font-semibold text-gray-900">Gallery</h2>
@@ -475,8 +483,6 @@ const BusinessProfile = () => {
                 </ShimmerCard>
               </div>
             </div>
-
-            {/* Right Sidebar removed per request */}
           </div>
         </div>
       </div>
@@ -486,7 +492,6 @@ const BusinessProfile = () => {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
         }
-        
       `}</style>
     </div>
   );

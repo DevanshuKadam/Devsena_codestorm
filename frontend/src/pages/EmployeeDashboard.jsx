@@ -116,7 +116,7 @@ export default function EmployeeDashboard() {
       {/* Particles Background */}
       <Particles count={50} />
       
-      <div className="relative z-10 pt-20 p-6">
+      <div className="relative z-10 pt-24 p-6">
         <div className="max-w-7xl mx-auto">
         
           {/* Header Card with Glassmorphism */}

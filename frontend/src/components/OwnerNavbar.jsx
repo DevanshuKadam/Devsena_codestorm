@@ -1,48 +1,64 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import { Button } from "./ui/button";
+import { Link, useLocation } from "react-router-dom";
 import { UserCircleIcon } from "@heroicons/react/24/outline";
 
 const OwnerNavbar = () => {
-  return (
-    <>
-      <nav className="flex items-center justify-between bg-white shadow-md px-6 py-4">
-        <Button
-          asChild
-          variant="link"
-          className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-twine-500 to-twine-700"
-        >
-          <Link to="/admin">WorkFlow AI Admin</Link>
-        </Button>
+  const location = useLocation();
 
-        <div className="hidden md:flex items-center gap-2">
-          <Button asChild variant="ghost" className="text-sm md:text-base font-medium hover:text-twine-600">
-            <Link to="/admin">Dashboard</Link>
-          </Button>
-          <Button asChild variant="ghost" className="text-sm md:text-base font-medium hover:text-twine-600">
-            <Link to="/admin/staff-management">Staff</Link>
-          </Button>
-          <Button asChild variant="ghost" className="text-sm md:text-base font-medium hover:text-twine-600">
-            <Link to="/admin/schedule-dashboard">Schedule</Link>
-          </Button>
+  const links = [
+    { name: "Dashboard", path: "/admin" },
+    { name: "Staff", path: "/admin/staff-management" },
+    { name: "Schedule", path: "/admin/schedule-dashboard" },
+  ];
+
+  return (
+    <nav className="fixed z-50 top-0 left-0 w-full backdrop-blur-xl bg-white/10 border-b border-white/20 shadow-lg">
+      
+      {/* Glassmorphism Container */}
+      <div className="flex items-center justify-center p-4 px-6 md:px-8">
+        
+        {/* Content Wrapper */}
+        <div className="flex items-center justify-between w-full max-w-7xl mx-auto">
+          
+          {/* Logo / Title */}
+          <Link
+            to="/admin"
+            className="text-2xl font-bold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent tracking-wide hover:from-blue-600 hover:to-indigo-500 transition-all duration-300"
+          >
+            WorkWise Admin Portal
+          </Link>
+
+          {/* Navigation Links */}
+          <div className="flex items-center gap-4 md:gap-8">
+            {links.map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={`relative text-base md:text-lg font-medium px-3 py-2 rounded-lg transition-all duration-300
+                  ${
+                    location.pathname.startsWith(link.path) && link.path !== "/admin"
+                      ? "bg-white/20 text-blue-800 font-semibold shadow-sm"
+                      : location.pathname === "/admin" && link.path === "/admin"
+                      ? "bg-white/20 text-blue-800 font-semibold shadow-sm"
+                      : "text-gray-700 hover:text-blue-600 hover:bg-white/10"
+                  }`}
+              >
+                {link.name}
+              </Link>
+            ))}
+          </div>
+
+          {/* User Profile Icon - Now always visible */}
+          <div className="flex items-center gap-2">
+            <Link to="/admin/business-profile" className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300">
+              <UserCircleIcon className="h-8 w-8 text-blue-600 transition-transform duration-200 hover:scale-110" />
+            </Link>
+          </div>
           
         </div>
-
-        <div className="flex items-center gap-2">
-          <UserCircleIcon className="w-8 h-8 text-gray-600" />
-          <Link
-            to="/admin/business-profile"
-            className="text-gray-600 hover:text-twine-600 text-lg font-medium"
-          >
-            Business Profile
-          </Link>
-        </div>
-      </nav>
-      <div className="border-b-2 border-gray-200 shadow-sm" />
-    </>
+      </div>
+    </nav>
   );
 };
 
 export default OwnerNavbar;
-
-
