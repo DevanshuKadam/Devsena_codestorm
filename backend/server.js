@@ -73,21 +73,21 @@ app.get("/auth/google/callback", async (req, res) => {
             return res.redirect(`${frontendUrl}/?error=no_code`);
         }
 
-        console.log('OAuth Callback: Processing authorization code:', code);
+        // console.log('OAuth Callback: Processing authorization code:', code);
 
         // Exchange code for tokens
         const { tokens } = await oauth2Client.getToken(code);
-        console.log('OAuth Callback: Received tokens:', { 
-            access_token: tokens.access_token ? 'present' : 'missing',
-            refresh_token: tokens.refresh_token ? 'present' : 'missing'
-        });
+        // console.log('OAuth Callback: Received tokens:', { 
+        //     access_token: tokens.access_token ? 'present' : 'missing',
+        //     refresh_token: tokens.refresh_token ? 'present' : 'missing'
+        // });
         
         oauth2Client.setCredentials(tokens);
 
         // Get user info
         const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
         const { data: userInfo } = await oauth2.userinfo.get();
-        console.log('OAuth Callback: Retrieved user info:', userInfo);
+        // console.log('OAuth Callback: Retrieved user info:', userInfo);
 
         const { id: googleId, email, name, picture } = userInfo;
 
@@ -96,7 +96,7 @@ app.get("/auth/google/callback", async (req, res) => {
         const ownerDoc = await ownerRef.get();
 
         if (!ownerDoc.exists) {
-            console.log('OAuth Callback: Creating new owner document');
+            // console.log('OAuth Callback: Creating new owner document');
             // Create initial owner document
             await ownerRef.set({
                 googleId,
@@ -109,7 +109,7 @@ app.get("/auth/google/callback", async (req, res) => {
                 isRegistered: false, // not completed registration yet
             });
         } else {
-            console.log('OAuth Callback: Updating existing owner tokens');
+            // console.log('OAuth Callback: Updating existing owner tokens');
             // Update tokens
             await ownerRef.update({
                 accessToken: tokens.access_token,
@@ -131,8 +131,8 @@ app.get("/auth/google/callback", async (req, res) => {
         // Store temporarily (in production, use Redis or similar)
         tempAuthData = authData;
         
-        console.log('OAuth Callback: Stored auth data:', authData);
-        console.log('OAuth Callback: Redirecting to onboarding page');
+        // console.log('OAuth Callback: Stored auth data:', authData);
+        // console.log('OAuth Callback: Redirecting to onboarding page');
 
         // Redirect to onboarding page with auth data
         
@@ -162,20 +162,20 @@ app.post("/auth/temp", (req, res) => {
 
 // Get temporary auth data
 app.get("/auth/status", (req, res) => {
-    console.log('Auth Status: Checking for temp auth data...');
-    console.log('Auth Status: tempAuthData exists:', !!tempAuthData);
+    // console.log('Auth Status: Checking for temp auth data...');
+    // console.log('Auth Status: tempAuthData exists:', !!tempAuthData);
     
     if (tempAuthData) {
-        console.log('Auth Status: Returning auth data:', tempAuthData);
+        // console.log('Auth Status: Returning auth data:', tempAuthData);
         const data = tempAuthData;
         // Don't clear immediately - let it expire after some time
         setTimeout(() => {
-            console.log('Auth Status: Clearing temp auth data after timeout');
+            // console.log('Auth Status: Clearing temp auth data after timeout');
             tempAuthData = null;
         }, 30000); // Clear after 30 seconds
         res.json(data);
     } else {
-        console.log('Auth Status: No auth data available');
+        // console.log('Auth Status: No auth data available');
         res.json({ success: false, message: "No auth data available" });
     }
 });

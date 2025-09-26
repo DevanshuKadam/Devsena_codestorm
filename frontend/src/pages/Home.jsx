@@ -65,7 +65,7 @@ const Home = () => {
         </Link>
         <nav className="flex items-center gap-3">
           {/* Nav Link Colors Updated */}
-          <Link to="/admin" className="px-4 py-2 text-blue-700 hover:text-indigo-800 font-medium transition-colors">Owner Portal</Link>
+          <Link to="/admin/dashboard" className="px-4 py-2 text-blue-700 hover:text-indigo-800 font-medium transition-colors">Owner Portal</Link>
           <Link to="/dashboard" className="px-4 py-2 text-blue-700 hover:text-indigo-800 font-medium transition-colors">Employee Portal</Link>
         </nav>
       </header>

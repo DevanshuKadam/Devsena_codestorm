@@ -8,7 +8,6 @@ import EmployeeLogin from './pages/EmployeeLogin';
 import Payroll from './pages/Payroll';
 import Profile from './pages/Profile';
 import Training from './pages/Training';
-import EmployeeLogin from './pages/EmployeeLogin';
 import OwnerPayroll from './pages/owner/OwnerPayroll';
 
 // Owner pages

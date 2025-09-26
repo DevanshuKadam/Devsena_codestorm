@@ -6,7 +6,7 @@ const OwnerNavbar = () => {
   const location = useLocation();
 
   const links = [
-    { name: "Dashboard", path: "/admin" },
+    { name: "Dashboard", path: "/admin/dashboard" },
     { name: "Staff", path: "/admin/staff-management" },
     { name: "Schedule", path: "/admin/schedule-dashboard" },
     // NEW: Payroll Link Added
@@ -25,7 +25,7 @@ const OwnerNavbar = () => {
           
           {/* Logo / Title */}
           <Link
-            to="/admin"
+            to="/admin/dashboard"
             className="text-2xl font-bold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent tracking-wide hover:from-blue-600 hover:to-indigo-500 transition-all duration-300"
           >
             WorkWise Admin Portal
