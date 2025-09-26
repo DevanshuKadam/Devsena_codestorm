@@ -1,27 +1,24 @@
 import './App.css'
-import { Button } from './components/ui/button';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// import pages
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import EmployeeSchedule from './pages/EmployeeSchedule';
 import Payroll from './pages/Payroll';
 import Profile from './pages/Profile';
+import Training from './pages/Training';
 
 function App() {
   return (
     <Router>
-      <div className="p-6">
-        <h1 className="underline">helloooo</h1>
-        <Button variant="destructive">click</Button>
-
-        <Routes>
-          <Route path="/dashboard" element={<EmployeeDashboard />} />
-          <Route path="/schedule" element={<EmployeeSchedule />} />
-          <Route path="/payroll" element={<Payroll />} />
-          <Route path="/profile" element={<Profile />} />
-        </Routes>
-      </div>
+      <Routes>
+        {/* Default landing page → Dashboard */}
+        <Route path="/" element={<Navigate to="/dashboard" />} />
+        <Route path="/dashboard" element={<EmployeeDashboard />} />
+        <Route path="/schedule" element={<EmployeeSchedule />} />
+        <Route path="/payroll" element={<Payroll />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/training" element={<Training />} />
+      </Routes>
     </Router>
   );
 }
