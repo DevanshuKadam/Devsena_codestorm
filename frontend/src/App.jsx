@@ -1,13 +1,13 @@
 import './App.css'
-import { Button } from './components/ui/button';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// import pages
+
 
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import EmployeeSchedule from './pages/EmployeeSchedule';
 import Payroll from './pages/Payroll';
 import Profile from './pages/Profile';
+import Training from './pages/Training';
 
 // Owner pages
 import Onboarding from './pages/owner/Onboarding';
@@ -22,6 +22,8 @@ import Home from './pages/Home';
 function App() {
   return (
     <Router>
+
+
       <div className="p-0">
 
         <Routes>
@@ -30,6 +32,7 @@ function App() {
           <Route path="/schedule" element={<EmployeeSchedule />} />
           <Route path="/payroll" element={<Payroll />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/training" element={<Training />} />
 
           {/* Owner/Admin routes */}
           <Route path="/admin" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -40,6 +43,7 @@ function App() {
         
         </Routes>
       </div>
+
     </Router>
   );
 }
