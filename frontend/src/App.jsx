@@ -12,6 +12,7 @@ import EmployeeSchedule from './pages/EmployeeSchedule';
 import Payroll from './pages/Payroll';
 import Profile from './pages/Profile';
 import Training from './pages/Training';
+import EmployeeLogin from './pages/EmployeeLogin';
 
 // Owner pages
 import Onboarding from './pages/owner/Onboarding';
@@ -26,73 +27,36 @@ import Home from './pages/Home';
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<Home />} />
-        <Route path="/landing" element={<Landing />} />
 
-        {/* Employee routes */}
-        <Route path="/dashboard" element={<EmployeeDashboard />} />
-        <Route path="/schedule" element={<EmployeeSchedule />} />
-        <Route path="/payroll" element={<Payroll />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/training" element={<Training />} />
-        <Route path="/chat" element={<ChatPage role="employee" />} />
 
-        {/* Owner/Admin routes */}
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/chat"
-          element={
-            <ProtectedRoute>
-              <ChatPage role="manager" />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/onboarding"
-          element={
-            <ProtectedRoute>
-              <Onboarding />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/staff-management"
-          element={
-            <ProtectedRoute>
-              <StaffManagement />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/schedule-dashboard"
-          element={
-            <ProtectedRoute>
-              <ScheduleDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/business-profile"
-          element={
-            <ProtectedRoute>
-              <BusinessProfile />
-            </ProtectedRoute>
-          }
-        />
+      <div className="p-0">
 
-        {/* Components (if you want direct routes for testing, optional) */}
-        <Route path="/chat-list" element={<ChatList users={[]} onSelect={() => {}} selected={null} />} />
-        <Route path="/chat-window" element={<ChatWindow me="test" other="other" socket={nalawadeSocket} />} />
-      </Routes>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/employee-login" element={<EmployeeLogin />} />
+          <Route path="/dashboard" element={<EmployeeDashboard />} />
+          <Route path="/schedule" element={<EmployeeSchedule />} />
+          <Route path="/payroll" element={<Payroll />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/training" element={<Training />} />
+
+          {/* Owner/Admin routes */}
+          <Route path="/admin" element={<Landing />} />
+          <Route path="/admin/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/admin/auth" element={<Auth />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/auth/callback-simple" element={<AuthCallbackSimple />} />
+          <Route path="/auth/success" element={<AuthSuccess />} />
+          <Route path="/auth/error" element={<AuthError />} />
+          <Route path="/admin/onboarding" element={<Onboarding />} />
+          <Route path="/test-onboarding" element={<Onboarding />} />
+          <Route path="/admin/staff-management" element={<ProtectedRoute><StaffManagement /></ProtectedRoute>} />
+          <Route path="/admin/schedule-dashboard" element={<ProtectedRoute><ScheduleDashboard /></ProtectedRoute>} />
+          <Route path="/admin/business-profile" element={<ProtectedRoute><BusinessProfile /></ProtectedRoute>} />
+        
+        </Routes>
+      </div>
+
     </Router>
   );
 }

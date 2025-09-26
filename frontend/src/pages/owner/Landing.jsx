@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import OwnerNavbar from '../../components/OwnerNavbar';
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, CalendarCheck2, Users, Brain } from 'lucide-react';
 import { Card } from '../../components/ui/card';
@@ -9,14 +8,69 @@ import { Button } from '../../components/ui/button';
 
 const Landing = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const isOnboarded = localStorage.getItem('ownerOnboarded') === 'true';
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      navigate(isOnboarded ? '/admin/schedule-dashboard' : '/admin/onboarding', { replace: true });
+    // Check URL for error parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorParam = urlParams.get('error');
+    
+    if (errorParam === 'auth_failed') {
+      setError('Authentication failed. Please try again.');
+    } else if (errorParam === 'auth_error') {
+      setError('An error occurred during authentication. Please try again.');
     }
+
+    // Check if user is already authenticated and onboarded
+    const checkAuthStatus = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/auth/status');
+        const data = await response.json();
+        
+        if (data.success) {
+          // User is authenticated, check if onboarded
+          if (data.isRegistered) {
+            navigate('/admin/schedule-dashboard', { replace: true });
+          } else {
+            navigate('/admin/onboarding', { replace: true });
+          }
+        }
+      } catch (error) {
+        console.log('No existing auth session');
+      }
+    };
+
+    checkAuthStatus();
   }, [navigate]);
+
+  const handleGoogleAuth = async () => {
+    console.log('Landing: Starting Google Auth process...');
+    setIsLoading(true);
+    setError('');
+    try {
+      console.log('Landing: Fetching auth URL from backend...');
+      const response = await fetch('http://localhost:3000/auth/google');
+      const data = await response.json();
+      
+      console.log('Landing: Received response from backend:', data);
+      
+      if (data.authUrl) {
+        console.log('Landing: Got auth URL, redirecting to Google OAuth...');
+        console.log('Landing: Auth URL:', data.authUrl);
+        // Redirect to Google OAuth
+        window.location.href = data.authUrl;
+      } else {
+        console.error('Landing: Failed to get auth URL from backend');
+        setError('Failed to initiate authentication. Please try again.');
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('Landing: Google Auth Error:', error);
+      setError('Network error. Please check your connection and try again.');
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-twine-50">
@@ -33,12 +87,24 @@ const Landing = () => {
           </div>
           <h1 className="text-4xl font-bold text-twine-800 mb-3">WorkFlow AI — Owner Portal</h1>
           <p className="text-twine-600 mb-10">Manage your business profile, staff and AI-generated schedules in one place.</p>
+          
+          {/* Error Display */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl max-w-md mx-auto">
+              <p className="text-red-600 text-center">{error}</p>
+            </div>
+          )}
+          
           <div className="flex flex-wrap justify-center gap-3">
-            <Button asChild className="bg-gradient-to-r from-twine-500 to-twine-600 hover:from-twine-600 hover:to-twine-700">
-              <Link to="/admin">Go to Owner Portal</Link>
+            <Button 
+              onClick={handleGoogleAuth}
+              disabled={isLoading}
+              className="bg-gradient-to-r from-twine-500 to-twine-600 hover:from-twine-600 hover:to-twine-700"
+            >
+              {isLoading ? 'Signing in...' : 'Register your business'}
             </Button>
             <Button asChild variant="outline">
-              <Link to="/admin/onboarding">Register your business</Link>
+              <Link to="/admin">Go to Owner Portal</Link>
             </Button>
           </div>
         </div>

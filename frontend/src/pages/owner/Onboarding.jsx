@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Upload, Plus, X, Clock, MapPin, Phone, Building2, Users, Calendar } from 'lucide-react';
 import OwnerNavbar from '../../components/OwnerNavbar';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +17,11 @@ const Onboarding = () => {
   });
 
   const [customRole, setCustomRole] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [authData, setAuthData] = useState(null);
+  const [error, setError] = useState('');
+  
   const predefinedRoles = ['Cashier', 'Helper', 'Stock Manager', 'Sales Associate', 'Supervisor', 'Cleaner'];
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -69,13 +74,141 @@ const Onboarding = () => {
 
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    const handleAuth = async () => {
+      try {
+        console.log('Onboarding: Checking authentication...');
+        
+        // First check if user is already registered
+        const storedData = localStorage.getItem('ownerData');
+        if (storedData) {
+          const parsedData = JSON.parse(storedData);
+          if (parsedData.success && parsedData.isRegistered) {
+            console.log('Onboarding: User already registered, redirecting to dashboard');
+            navigate('/admin/schedule-dashboard', { replace: true });
+            return;
+          } else if (parsedData.success && !parsedData.isRegistered) {
+            console.log('Onboarding: User authenticated but not registered, showing form');
+            setAuthData(parsedData);
+            return;
+          }
+        }
+  
+        // Get OAuth code from URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+  
+        if (!code) {
+          console.log('Onboarding: No OAuth code found and no stored data');
+          navigate('/admin', { replace: true });
+          return;
+        }
+  
+        console.log('Onboarding: Found OAuth code, calling callback API...');
+        setIsAuthLoading(true);
+  
+        const response = await fetch(`http://localhost:3000/auth/google/callback?code=${code}`);
+        const data = await response.json();
+  
+        console.log('Onboarding: OAuth callback response:', data);
+  
+        if (data.success) {
+          // Save response to localStorage
+          localStorage.setItem('ownerData', JSON.stringify(data));
+          setAuthData(data);
+  
+          // If already registered, redirect to dashboard
+          if (data.isRegistered) {
+            navigate('/admin/schedule-dashboard', { replace: true });
+          }
+  
+          // Remove code from URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } else {
+          console.error('Onboarding: Authentication failed:', data.message);
+          setError('Authentication failed. Please try again.');
+        }
+      } catch (error) {
+        console.error('Onboarding: Error during OAuth callback:', error);
+        setError('Authentication failed. Please try again.');
+      } finally {
+        setIsAuthLoading(false);
+      }
+    };
+  
+    handleAuth();
+  }, [navigate]);
+  
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Onboarding data:', formData);
-    // Save to backend and redirect to ScheduleDashboard
-    localStorage.setItem('ownerOnboarded', 'true');
-    navigate('/admin/schedule-dashboard');
+    setIsLoading(true);
+    setError('');
+
+    try {
+      if (!authData) {
+        throw new Error('Authentication required');
+      }
+
+      // Prepare business hours data
+      const businessHours = formData.businessDays.map(day => ({
+        weekday: daysOfWeek.indexOf(day),
+        start: formData.openingTime,
+        end: formData.closingTime,
+        isOpen: true
+      }));
+
+      // Register the business
+      const response = await fetch('http://localhost:3000/owner/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          googleId: authData.googleId,
+          shopName: formData.businessName,
+          businessHours: businessHours,
+          ownerPhone: formData.contactNumber,
+          mapsUrl: formData.googleAddress,
+          roles: formData.roles
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update auth data to mark as registered
+        const updatedAuthData = { ...authData, isRegistered: true };
+        localStorage.setItem('ownerData', JSON.stringify(updatedAuthData));
+        setAuthData(updatedAuthData);
+        
+        // Registration successful, redirect to dashboard
+        navigate('/admin/schedule-dashboard', { replace: true });
+      } else {
+        throw new Error(result.message || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('Registration Error:', error);
+      setError(error.message || 'Failed to register business. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  // Show loading screen while processing OAuth
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-twine-50 to-twine-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-twine-500 rounded-full mb-4 animate-pulse">
+            <Building2 className="w-10 h-10 text-white" />
+          </div>
+          <h2 className="text-2xl font-semibold text-twine-800 mb-2">Processing Authentication...</h2>
+          <p className="text-twine-600">Please wait while we verify your Google account.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-twine-50 to-twine-100">
@@ -101,6 +234,13 @@ const Onboarding = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="p-8 space-y-8">
+            {/* Error Display */}
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-red-600">{error}</p>
+              </div>
+            )}
+
             {/* Basic Information */}
             <div className="space-y-6">
               <h3 className="text-xl font-semibold text-twine-800 flex items-center gap-2">
@@ -357,9 +497,14 @@ const Onboarding = () => {
             <div className="flex justify-end pt-6">
               <button
                 type="submit"
-                className="px-8 py-4 bg-gradient-to-r from-twine-500 to-twine-600 text-white font-semibold rounded-xl hover:from-twine-600 hover:to-twine-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                disabled={isLoading}
+                className={`px-8 py-4 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 ${
+                  isLoading 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-twine-500 to-twine-600 hover:from-twine-600 hover:to-twine-700'
+                }`}
               >
-                Complete Setup
+                {isLoading ? 'Setting up...' : 'Complete Setup'}
               </button>
             </div>
           </form>
