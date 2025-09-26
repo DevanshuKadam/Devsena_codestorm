@@ -233,7 +233,7 @@ app.patch("/shop/:shopId/business-hours", async (req, res) => {
 
 app.post("/owner/add-employee", async (req, res) => {
     try {
-        const { ownerId, shopId, name, email, phone, role } = req.body;
+        const { ownerId, shopId, name, email, phone, role, wage } = req.body;
 
         // verify owner exists
         const ownerRef = db.collection("owners").doc(ownerId);
@@ -255,6 +255,7 @@ app.post("/owner/add-employee", async (req, res) => {
             email,
             phone,
             role,
+            wage,
             password: plainPassword, // ❗ plain password (not secure, prototype only)
             createdAt: new Date(),
         });
