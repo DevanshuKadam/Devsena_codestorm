@@ -1,7 +1,11 @@
 import Navbar from "../components/Navbar";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ClockIcon, CalendarDaysIcon, CheckCircleIcon, XCircleIcon, ChartBarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import Particles from '../components/ui/magic/Particles';
+import QRScanner from '../components/QRScanner';
+import { useEmployeeAuth } from '../contexts/EmployeeAuthContext';
+import apiService from '../services/api';
+import { Camera, LogOut, LogIn } from 'lucide-react';
 
 // This is a dummy data array to simulate fetching an employee's weekly schedule.
 const weeklySchedule = [
@@ -78,6 +82,133 @@ const WorkingHoursChart = ({ hours }) => {
 
 
 export default function EmployeeDashboard() {
+  const { employee, isAuthenticated } = useEmployeeAuth();
+  const [timeStatus, setTimeStatus] = useState({
+    isPunchedIn: false,
+    punchInTime: null,
+    currentShiftHours: 0.0,
+  });
+  const [showScanner, setShowScanner] = useState(false);
+  const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Check if employee is punched in today
+  useEffect(() => {
+    if (isAuthenticated && employee) {
+      checkTodayPunchStatus();
+    }
+  }, [isAuthenticated, employee]);
+
+  const checkTodayPunchStatus = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const response = await apiService.getEmployeePunchRecords(employee.id, today, today, 10);
+      
+      if (response.success) {
+        const todayRecords = response.punchRecords;
+        const punchInRecord = todayRecords.find(record => record.punchType === 'punchin');
+        const punchOutRecord = todayRecords.find(record => record.punchType === 'punchout');
+        
+        if (punchInRecord && !punchOutRecord) {
+          setTimeStatus({
+            isPunchedIn: true,
+            punchInTime: new Date(punchInRecord.timestamp).toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            }),
+            currentShiftHours: 0.0,
+          });
+        } else if (punchInRecord && punchOutRecord) {
+          setTimeStatus({
+            isPunchedIn: false,
+            punchInTime: new Date(punchInRecord.timestamp).toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            }),
+            currentShiftHours: parseFloat(punchOutRecord.workHours || 0),
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking punch status:', error);
+    }
+  };
+
+  const handleQRScan = async (qrToken) => {
+    if (!isAuthenticated || !employee) {
+      setMessage('❌ Please log in first');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setMessage('Processing QR code...');
+
+      // Note: In a real app, you'd need to securely store and pass the password
+      const mockPassword = 'czczpn74bpq'; // This should be handled properly in production
+      const response = await apiService.punchInScan(employee.id, mockPassword, qrToken);
+      
+      if (response.success) {
+        setTimeStatus({
+          isPunchedIn: true,
+          punchInTime: new Date(response.punchRecord.timestamp).toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }),
+          currentShiftHours: 0.0,
+        });
+        setMessage(`✅ Successfully PUNCHED IN at ${new Date(response.punchRecord.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
+      } else {
+        setMessage(`❌ Punch in failed: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('Punch in error:', error);
+      setMessage(`❌ Error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePunchOut = async () => {
+    if (!isAuthenticated || !employee) {
+      setMessage('❌ Please log in first');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setMessage('Processing punch out...');
+
+      // Note: In a real app, you'd need to securely store and pass the password
+      const mockPassword = 'temp_password'; // This should be handled properly in production
+      const response = await apiService.punchOut(employee.id, mockPassword);
+      
+      if (response.success) {
+        setTimeStatus({
+          ...timeStatus,
+          isPunchedIn: false,
+          currentShiftHours: parseFloat(response.punchRecord.workHours || 0),
+        });
+        setMessage(`👋 Successfully PUNCHED OUT. Shift length: ${response.punchRecord.workHours} hours.`);
+      } else {
+        setMessage(`❌ Punch out failed: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('Punch out error:', error);
+      setMessage(`❌ Error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAction = () => {
+    if (timeStatus.isPunchedIn) {
+      handlePunchOut();
+    } else {
+      setShowScanner(true);
+    }
+  };
+
   // Calculate total hours for the week
   const totalHours = weeklySchedule.reduce((total, day) => {
     const dayHours = day.shifts.reduce((sum, shift) => {
@@ -162,10 +293,45 @@ export default function EmployeeDashboard() {
                   <p className="text-sm text-blue-600 mt-2">75% Acknowledged</p>
                 </div>
 
-                {/* CTA Button */}
-                <button className="mt-8 w-full px-8 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-extrabold text-lg rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200">
-                  View Full Schedule
+                {/* Punch In/Out Button */}
+                <button
+                  onClick={handleAction}
+                  disabled={isLoading || showScanner}
+                  className={`mt-8 w-full px-8 py-3 text-white font-extrabold text-lg rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-wait flex items-center justify-center gap-2
+                    ${timeStatus.isPunchedIn 
+                      ? 'bg-gradient-to-r from-red-500 to-red-700' 
+                      : 'bg-gradient-to-r from-green-500 to-green-700'
+                    }`}
+                >
+                  {timeStatus.isPunchedIn ? (
+                    <LogOut className={`w-5 h-5 ${isLoading ? 'animate-pulse' : ''}`} />
+                  ) : (
+                    <Camera className={`w-5 h-5 ${showScanner ? 'animate-pulse' : ''}`} />
+                  )}
+                  {isLoading 
+                    ? 'Processing...' 
+                    : showScanner 
+                      ? 'Scanning QR...' 
+                      : timeStatus.isPunchedIn 
+                        ? 'Punch Out' 
+                        : 'Punch In'}
                 </button>
+
+                {/* Status Message */}
+                {message && (
+                  <div className={`mt-4 p-3 rounded-xl border-l-4 ${timeStatus.isPunchedIn ? 'bg-green-50 border-green-400 text-green-700' : 'bg-blue-50 border-blue-400 text-blue-700'}`}>
+                    <p className="font-medium text-sm">{message}</p>
+                  </div>
+                )}
+
+                {/* Current Status Display */}
+                {timeStatus.isPunchedIn && (
+                  <div className="mt-4 p-3 bg-green-50 rounded-xl border border-green-200">
+                    <p className="text-sm text-green-700">
+                      <strong>Punched In:</strong> {timeStatus.punchInTime}
+                    </p>
+                  </div>
+                )}
               </div>
             </ShimmerCard>
 
@@ -246,6 +412,13 @@ export default function EmployeeDashboard() {
           </div>
         </div>
       </div>
+
+      {/* QR Scanner Modal */}
+      <QRScanner
+        isOpen={showScanner}
+        onScan={handleQRScan}
+        onClose={() => setShowScanner(false)}
+      />
 
       <style jsx>{`
         @keyframes shimmer {

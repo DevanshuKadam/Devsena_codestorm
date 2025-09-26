@@ -6,9 +6,12 @@ const OwnerNavbar = () => {
   const location = useLocation();
 
   const links = [
-    { name: "Dashboard", path: "/admin" },
+    { name: "Dashboard", path: "/admin/dashboard" },
     { name: "Staff", path: "/admin/staff-management" },
     { name: "Schedule", path: "/admin/schedule-dashboard" },
+    // NEW: Payroll Link Added
+    { name: "Payroll", path: "/admin/payroll" }, 
+    // { name: "Profile", path: "/admin/business-profile" }, // Profile link is now handled by the user icon on the right
   ];
 
   return (
@@ -22,7 +25,7 @@ const OwnerNavbar = () => {
           
           {/* Logo / Title */}
           <Link
-            to="/admin"
+            to="/admin/dashboard"
             className="text-2xl font-bold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent tracking-wide hover:from-blue-600 hover:to-indigo-500 transition-all duration-300"
           >
             WorkWise Admin Portal
@@ -48,7 +51,7 @@ const OwnerNavbar = () => {
             ))}
           </div>
 
-          {/* User Profile Icon - Now always visible */}
+          {/* User Profile Icon */}
           <div className="flex items-center gap-2">
             <Link to="/admin/business-profile" className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300">
               <UserCircleIcon className="h-8 w-8 text-blue-600 transition-transform duration-200 hover:scale-110" />

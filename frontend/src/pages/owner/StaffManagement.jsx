@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 // Using Lucide Icons as they were in the original import
-import { Users, Plus, Edit2, Trash2, Mail, Phone, UserCheck, Calendar, Clock, X, TrendingUp } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Mail, Phone, UserCheck, Calendar, Clock, X, TrendingUp, QrCode } from 'lucide-react';
 import OwnerNavbar from '../../components/OwnerNavbar';
 import Particles from '../../components/ui/magic/Particles';
+import QRCodeGenerator from '../../components/QRCodeGenerator';
 
 const StaffManagement = () => {
+  const [showQRGenerator, setShowQRGenerator] = useState(false);
   const [staff, setStaff] = useState([
     {
       id: 1,
@@ -171,16 +173,29 @@ const StaffManagement = () => {
                   </div>
                 </div>
                 
-                {/* Add Staff Button Gradient Updated */}
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
-                >
-                  <div className="flex items-center gap-2">
-                    <Plus className="w-5 h-5" />
-                    Add New Staff
-                  </div>
-                </button>
+                <div className="flex gap-3">
+                  {/* Add Staff Button Gradient Updated */}
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Plus className="w-5 h-5" />
+                      Add New Staff
+                    </div>
+                  </button>
+                  
+                  {/* Generate QR Button */}
+                  <button
+                    onClick={() => setShowQRGenerator(true)}
+                    className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-2">
+                      <QrCode className="w-5 h-5" />
+                      Generate QR
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
           </ShimmerCard>
@@ -399,6 +414,15 @@ const StaffManagement = () => {
               </ShimmerCard>
             </div>
           )}
+
+          {/* QR Code Generator Modal */}
+          <QRCodeGenerator
+            isOpen={showQRGenerator}
+            onClose={() => setShowQRGenerator(false)}
+            ownerId="110203721319547908065"
+            shopId="lwwQIz4mwwuFFuT4G0Az"
+            shopName="Candies Cafe"
+          />
         </div>
       </div>
 

@@ -1,14 +1,14 @@
 import './App.css'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-
-
+import { EmployeeAuthProvider } from './contexts/EmployeeAuthContext';
 
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import EmployeeSchedule from './pages/EmployeeSchedule';
+import EmployeeLogin from './pages/EmployeeLogin';
 import Payroll from './pages/Payroll';
 import Profile from './pages/Profile';
 import Training from './pages/Training';
-import EmployeeLogin from './pages/EmployeeLogin';
+import OwnerPayroll from './pages/owner/OwnerPayroll';
 
 // Owner pages
 import Onboarding from './pages/owner/Onboarding';
@@ -27,19 +27,17 @@ import Home from './pages/Home';
 
 function App() {
   return (
-    <Router>
-
-
-      <div className="p-0">
-
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/employee-login" element={<EmployeeLogin />} />
-          <Route path="/dashboard" element={<EmployeeDashboard />} />
-          <Route path="/schedule" element={<EmployeeSchedule />} />
-          <Route path="/payroll" element={<Payroll />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/training" element={<Training />} />
+    <EmployeeAuthProvider>
+      <Router>
+        <div className="p-0">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/employee-login" element={<EmployeeLogin />} />
+            <Route path="/dashboard" element={<EmployeeDashboard />} />
+            <Route path="/schedule" element={<EmployeeSchedule />} />
+            <Route path="/payroll" element={<Payroll />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/training" element={<Training />} />
 
           {/* Owner/Admin routes */}
           <Route path="/admin" element={<Landing />} />
@@ -54,11 +52,12 @@ function App() {
           <Route path="/admin/staff-management" element={<ProtectedRoute><StaffManagement /></ProtectedRoute>} />
           <Route path="/admin/schedule-dashboard" element={<ProtectedRoute><ScheduleDashboard /></ProtectedRoute>} />
           <Route path="/admin/business-profile" element={<ProtectedRoute><BusinessProfile /></ProtectedRoute>} />
+          <Route path="/admin/payroll" element={<ProtectedRoute><OwnerPayroll /></ProtectedRoute>} />
         
-        </Routes>
-      </div>
-
-    </Router>
+          </Routes>
+        </div>
+      </Router>
+    </EmployeeAuthProvider>
   );
 }
 
