@@ -63,7 +63,7 @@ const StaffManagement = () => {
   );
 
   // Magic UI Animated Counter Component (Kept for reference, gradients updated)
-  const AnimatedCounter = ({ value, label, icon: Icon, gradient = "from-blue-500 to-indigo-700" }) => (
+  const AnimatedCounter = ({ value, label, icon: Icon, gradient = "from-orange-500 to-amber-600" }) => (
     <div className="relative group">
       <div className={`absolute inset-0 bg-gradient-to-r ${gradient} rounded-2xl blur opacity-20 group-hover:opacity-40 transition-opacity duration-300`}></div>
       <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-xl">
@@ -127,11 +127,11 @@ const StaffManagement = () => {
       {daysOfWeek.map(day => (
         <div key={day} className="text-center">
           {/* Availability text/background updated to blue/indigo */}
-          <div className="font-medium text-blue-700 mb-1">{day.substring(0, 3)}</div>
+          <div className="font-medium text-orange-700 mb-1">{day.substring(0, 3)}</div>
           <div className="space-y-1">
             {availability[day].length > 0 ? (
               availability[day].map((slot, index) => (
-                <div key={index} className="bg-blue-100 text-blue-700 px-1 py-1 rounded text-xs">
+                <div key={index} className="bg-orange-100 text-orange-700 px-1 py-1 rounded text-xs">
                   {slot.replace('-', '-')}
                 </div>
               ))
@@ -146,7 +146,7 @@ const StaffManagement = () => {
 
   return (
     // 1. Updated Background Gradient
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 relative overflow-hidden">
       <OwnerNavbar />
       {/* Particles Background */}
       <Particles count={70} />
@@ -159,12 +159,12 @@ const StaffManagement = () => {
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div className="flex items-center gap-4">
                   {/* Header Icon Gradient Updated */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-700 shadow-lg">
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-600 shadow-lg">
                     <Users className="w-8 h-8 text-white" />
                   </div>
                   <div>
                     {/* Header Text Gradient Updated */}
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent">
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-800 to-amber-700 bg-clip-text text-transparent">
                       Staff Management
                     </h1>
                     <p className="text-gray-600 mt-1">Manage your team members and their availability</p>
@@ -174,7 +174,7 @@ const StaffManagement = () => {
                 {/* Add Staff Button Gradient Updated */}
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                  className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 text-white font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
                 >
                   <div className="flex items-center gap-2">
                     <Plus className="w-5 h-5" />
@@ -191,25 +191,25 @@ const StaffManagement = () => {
               value={staff.length} 
               label="Total Staff" 
               icon={Users} 
-              gradient="from-blue-500 to-blue-700" // Updated to blue
+              gradient="from-orange-500 to-orange-700" // Updated to orange
             />
             <AnimatedCounter 
               value={staff.filter(s => s.status === 'active').length} 
               label="Active Staff" 
               icon={UserCheck} 
-              gradient="from-blue-500 to-blue-700" // Kept green for status
+              gradient="from-amber-500 to-amber-700" // Updated to amber
             />
             <AnimatedCounter 
               value={staff.filter(s => s.status === 'pending').length} 
               label="Pending Setup" 
               icon={Clock} 
-              gradient="from-blue-500 to-blue-700" // Kept yellow for warning/pending
+              gradient="from-yellow-500 to-yellow-700" // Updated to yellow
             />
             <AnimatedCounter 
               value={`${staff.reduce((total, s) => total + getAvailabilityHours(s.availability), 0).toFixed(0)}h`} 
               label="Total Hours/Week" 
               icon={Calendar} 
-              gradient="from-indigo-500 to-indigo-700" // Updated to indigo
+              gradient="from-amber-500 to-amber-700" // Updated to amber
             />
           </div>
 
@@ -221,7 +221,7 @@ const StaffManagement = () => {
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex items-start gap-4">
                       {/* Avatar Gradient Updated */}
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
+                      <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-amber-600 rounded-full flex items-center justify-center shadow-lg">
                         <span className="text-white font-bold text-xl">
                           {member.name.split(' ').map(n => n[0]).join('')}
                         </span>
@@ -253,7 +253,7 @@ const StaffManagement = () => {
 
                     <div className="flex items-center gap-2">
                       {/* Action Button Hover/Text Colors Updated */}
-                      <button className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors">
+                      <button className="p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-100 rounded-lg transition-colors">
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
@@ -267,7 +267,7 @@ const StaffManagement = () => {
 
                   <div>
                     {/* Availability Header Color Updated */}
-                    <h4 className="text-sm font-medium text-blue-700 mb-4 flex items-center gap-2">
+                    <h4 className="text-sm font-medium text-orange-700 mb-4 flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
                       Weekly Availability ({getAvailabilityHours(member.availability).toFixed(1)} hours/week)
                     </h4>
@@ -286,7 +286,7 @@ const StaffManagement = () => {
                   {/* Empty State Button Gradient Updated */}
                   <button
                     onClick={() => setShowAddModal(true)}
-                    className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl hover:from-indigo-600 hover:to-blue-500 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center gap-2 mx-auto"
+                    className="bg-gradient-to-r from-orange-500 to-amber-600 text-white px-6 py-3 rounded-xl hover:from-amber-600 hover:to-orange-500 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center gap-2 mx-auto"
                   >
                     <Plus className="w-5 h-5" />
                     Add First Staff Member
@@ -321,7 +321,7 @@ const StaffManagement = () => {
                         type="text"
                         value={newStaff.name}
                         onChange={(e) => setNewStaff({...newStaff, name: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors bg-white/50"
                         placeholder="Enter full name"
                         required
                       />
@@ -335,7 +335,7 @@ const StaffManagement = () => {
                         type="email"
                         value={newStaff.email}
                         onChange={(e) => setNewStaff({...newStaff, email: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors bg-white/50"
                         placeholder="employee@email.com"
                         required
                       />
@@ -349,7 +349,7 @@ const StaffManagement = () => {
                         type="tel"
                         value={newStaff.phone}
                         onChange={(e) => setNewStaff({...newStaff, phone: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors bg-white/50"
                         placeholder="+1 (555) 123-4567"
                         required
                       />
@@ -362,7 +362,7 @@ const StaffManagement = () => {
                       <select
                         value={newStaff.role}
                         onChange={(e) => setNewStaff({...newStaff, role: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors bg-white/50"
                         required
                       >
                         <option value="">Select a role</option>
@@ -372,8 +372,8 @@ const StaffManagement = () => {
                       </select>
                     </div>
 
-                    <div className="bg-blue-50 p-4 rounded-xl">
-                      <p className="text-sm text-blue-700">
+                    <div className="bg-orange-50 p-4 rounded-xl">
+                      <p className="text-sm text-orange-700">
                         📧 A registration link will be sent to the employee's email address. They'll be able to set up their availability and complete their profile.
                       </p>
                     </div>
@@ -389,7 +389,7 @@ const StaffManagement = () => {
                       {/* Submit Button Gradient Updated */}
                       <button
                         type="submit"
-                        className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-indigo-600 hover:to-blue-500 transition-all duration-200 shadow-lg hover:shadow-xl"
+                        className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl hover:from-amber-600 hover:to-orange-500 transition-all duration-200 shadow-lg hover:shadow-xl"
                       >
                         Send Invite
                       </button>

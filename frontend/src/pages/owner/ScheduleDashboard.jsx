@@ -45,7 +45,7 @@ const ScheduleDashboard = () => {
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 relative overflow-hidden">
       <Particles count={100} />
       <OwnerNavbar />
       
@@ -58,10 +58,10 @@ const ScheduleDashboard = () => {
             
             {/* Logo Section */}
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-700 shadow-lg">
+              <div className="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 shadow-lg">
                 <ListChecks className="w-7 h-7 text-white" />
               </div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-800 to-amber-700 bg-clip-text text-transparent">
                 Schedule Dashboard
               </h1>
             </div>
@@ -70,7 +70,7 @@ const ScheduleDashboard = () => {
             <button
               onClick={generateSchedule}
               disabled={status === 'generating'}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-xl hover:from-indigo-600 hover:to-blue-500 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
+              className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-semibold rounded-xl hover:from-amber-600 hover:to-orange-500 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
             >
               <Wand2 className={`w-5 h-5 ${status === 'generating' ? 'animate-spin' : ''}`} />
               {status === 'generating' ? 'Generating...' : 'Generate AI Schedule'}
@@ -87,27 +87,27 @@ const ScheduleDashboard = () => {
             
             {/* Status Messages Styling Improved */}
             {!proposedSchedule && status === 'idle' && (
-              <div className="text-gray-600 p-4 bg-blue-50/70 rounded-lg border border-blue-200">
+              <div className="text-gray-600 p-4 bg-orange-50/70 rounded-lg border border-orange-200">
                 Click the **Generate AI Schedule** button to create a proposed schedule based on staff availability and required tasks.
               </div>
             )}
             
             {status === 'generating' && (
-              <div className="text-blue-600 p-4 bg-blue-50/70 rounded-lg border border-blue-200 flex items-center gap-3">
+              <div className="text-orange-600 p-4 bg-orange-50/70 rounded-lg border border-orange-200 flex items-center gap-3">
                 <Clock className="w-5 h-5 animate-spin"/> Generating optimal schedule... Please wait.
               </div>
             )}
             
             {proposedSchedule && (
               <div>
-                <p className="text-blue-700 font-bold mb-4 border-b border-blue-200 pb-2">{proposedSchedule.week} Draft</p>
+                <p className="text-orange-700 font-bold mb-4 border-b border-orange-200 pb-2">{proposedSchedule.week} Draft</p>
                 <div className="space-y-3">
                   {proposedSchedule.shifts.map((s, i) => (
                     // Shift Item Styling Cleaned
-                    <div key={i} className="grid grid-cols-3 items-center p-4 bg-blue-50/70 rounded-xl border border-blue-200 shadow-sm transition hover:shadow-md">
+                    <div key={i} className="grid grid-cols-3 items-center p-4 bg-orange-50/70 rounded-xl border border-orange-200 shadow-sm transition hover:shadow-md">
                       <span className="font-bold text-gray-900">{s.day}</span>
-                      <span className="text-blue-700 font-medium">{s.role}</span>
-                      <span className="font-mono text-indigo-700 font-semibold text-right">{s.time}</span>
+                      <span className="text-orange-700 font-medium">{s.role}</span>
+                      <span className="font-mono text-amber-700 font-semibold text-right">{s.time}</span>
                     </div>
                   ))}
                 </div>
@@ -136,7 +136,7 @@ const ScheduleDashboard = () => {
           {/* Tasks Panel (1/3 width) */}
           <ShimmerCard className="p-6 backdrop-blur-sm bg-white/80">
             <h2 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-              <ListChecks className="w-6 h-6 text-blue-600" /> Essential Tasks
+              <ListChecks className="w-6 h-6 text-orange-600" /> Essential Tasks
             </h2>
 
             {/* Task Form Structure Improved */}
@@ -146,16 +146,16 @@ const ScheduleDashboard = () => {
                 value={newTask.title}
                 onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                 placeholder="Task description (e.g., Close registers)"
-                className="w-full px-4 py-3 border border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/70"
+                className="w-full px-4 py-3 border border-orange-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors bg-white/70"
               />
               <input
                 type="text"
                 value={newTask.role}
                 onChange={(e) => setNewTask({ ...newTask, role: e.target.value })}
                 placeholder="Role required (e.g., Supervisor)"
-                className="w-full px-4 py-3 border border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/70"
+                className="w-full px-4 py-3 border border-orange-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors bg-white/70"
               />
-              <Button type="submit" className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-indigo-600 hover:to-blue-500 inline-flex items-center justify-center gap-2 shadow-md">
+              <Button type="submit" className="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-500 inline-flex items-center justify-center gap-2 shadow-md">
                 <Plus className="w-4 h-4" /> Add Task
               </Button>
             </form>
@@ -163,10 +163,10 @@ const ScheduleDashboard = () => {
             {/* Task List Structure Cleaned */}
             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
               {tasks.map(t => (
-                <div key={t.id} className="flex items-center justify-between p-3 bg-blue-50/70 border border-blue-200 rounded-xl shadow-sm hover:shadow-md transition">
+                <div key={t.id} className="flex items-center justify-between p-3 bg-orange-50/70 border border-orange-200 rounded-xl shadow-sm hover:shadow-md transition">
                   <div className="flex flex-col">
                     <p className="font-semibold text-gray-900">{t.title}</p>
-                    {t.role && <p className="text-sm text-blue-600 font-medium">{t.role}</p>}
+                    {t.role && <p className="text-sm text-orange-600 font-medium">{t.role}</p>}
                   </div>
                 </div>
               ))}
