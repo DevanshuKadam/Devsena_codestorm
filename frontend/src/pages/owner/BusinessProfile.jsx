@@ -104,7 +104,13 @@ const BusinessProfile = () => {
 
       } catch (error) {
         console.error('BusinessProfile: Error fetching data:', error);
-        setError(error.message || 'Failed to load business profile');
+        
+        // Handle specific error types
+        if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED')) {
+          setError('Backend server is not running. Please start the server and try again.');
+        } else {
+          setError(error.message || 'Failed to load business profile');
+        }
       } finally {
         setIsLoading(false);
       }
@@ -276,12 +282,29 @@ const BusinessProfile = () => {
           </div>
           <h2 className="text-2xl font-semibold text-red-800 mb-2">Error Loading Profile</h2>
           <p className="text-red-600 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
-          >
-            Try Again
-          </button>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+            >
+              Try Again
+            </button>
+            {error.includes('Backend server is not running') && (
+              <button
+                onClick={() => {
+                  setError('');
+                  setIsLoading(true);
+                  // Retry the fetch
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1000);
+                }}
+                className="px-6 py-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors"
+              >
+                Start Server & Retry
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );

@@ -502,6 +502,48 @@ app.patch("/shop/:shopId/business-hours", async (req, res) => {
     }
 });
 
+// Get all employees for a shop
+app.get("/shop/:shopId/employees", async (req, res) => {
+    try {
+        const { shopId } = req.params;
+
+        // Verify shop exists
+        const shopRef = db.collection("shops").doc(shopId);
+        const shopDoc = await shopRef.get();
+        
+        if (!shopDoc.exists) {
+            return res.status(404).json({ success: false, message: "Shop not found" });
+        }
+
+        // Get all employees for this shop
+        const employeesRef = db.collection("employees");
+        const employeesSnapshot = await employeesRef.where("shopId", "==", shopId).get();
+
+        const employees = employeesSnapshot.docs.map(doc => {
+            const data = doc.data();
+            // Remove password from response
+            const { password, ...safeData } = data;
+            return {
+                id: doc.id,
+                ...safeData,
+                createdAt: data.createdAt.toDate()
+            };
+        });
+
+        res.json({
+            success: true,
+            employees,
+            shop: {
+                id: shopId,
+                name: shopDoc.data().shopName
+            }
+        });
+    } catch (err) {
+        console.error("Get Employees Error:", err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
+
 app.post("/owner/add-employee", async (req, res) => {
     try {
         const { ownerId, shopId, name, email, phone, role, wage } = req.body;
