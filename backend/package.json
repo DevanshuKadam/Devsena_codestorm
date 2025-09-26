@@ -20,6 +20,7 @@
     "morgan": "^1.10.1",
     "nodemailer": "^7.0.6",
     "nodemon": "^3.1.10",
-    "puppeteer": "^24.22.3"
+    "puppeteer": "^24.22.3",
+    "socket.io": "^4.7.5"
   }
 }

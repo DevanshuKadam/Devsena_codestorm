@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { UserCircleIcon } from "@heroicons/react/24/outline";
+import { UserCircleIcon, ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
 
 const Navbar = () => {
   const location = useLocation();
@@ -9,8 +9,8 @@ const Navbar = () => {
     { name: "Dashboard", path: "/dashboard" },
     { name: "Schedule", path: "/schedule" },
     { name: "Payroll", path: "/payroll" },
-    // ADDED: The Training link
     { name: "Training", path: "/training" },
+    { name: "Chat", path: "/chat" },
   ];
 
   return (
@@ -47,9 +47,12 @@ const Navbar = () => {
             ))}
           </div>
 
-          {/* User Profile Icon */}
+          {/* User Profile and Chat Icons */}
           <div className="flex items-center gap-2">
-            <Link to="/profile" className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300">
+            <Link to="/chat" className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300" title="Chat with Manager">
+              <ChatBubbleLeftRightIcon className="h-6 w-6 text-blue-600 transition-transform duration-200 hover:scale-110" />
+            </Link>
+            <Link to="/profile" className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300" title="Profile">
               <UserCircleIcon className="h-8 w-8 text-blue-600 transition-transform duration-200 hover:scale-110" />
             </Link>
           </div>

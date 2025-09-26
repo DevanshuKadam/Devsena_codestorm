@@ -6,10 +6,19 @@ import { google } from "googleapis";
 import { db } from "./firestore.js";
 import nodemailer from "nodemailer";
 import puppeteer from "puppeteer";
+import { createServer } from "http";
+import { Server } from "socket.io";
 
 dotenv.config();
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    methods: ["GET", "POST"]
+  }
+});
 
 app.use(cors());
 app.use(express.json());
@@ -589,7 +598,94 @@ app.delete("/calendar/events/:googleId/:eventId", async (req, res) => {
     }
 });
 
+// Socket.IO Chat functionality
+const connectedUsers = new Map();
+const messages = new Map(); // Store messages by room
 
-app.listen(3000, () => {
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  // Handle user registration
+  socket.on('register', (userData) => {
+    const { username, role } = userData;
+    connectedUsers.set(socket.id, { username, role, socketId: socket.id });
+    
+    // Join role-based room
+    socket.join(role);
+    
+    // Broadcast updated user list to all users
+    const users = Array.from(connectedUsers.values());
+    io.emit('users', users);
+    
+    console.log(`User ${username} (${role}) registered`);
+  });
+
+  // Handle joining a chat room
+  socket.on('join_room', (data) => {
+    const { room } = data;
+    socket.join(room);
+    console.log(`User joined room: ${room}`);
+  });
+
+  // Handle private messages
+  socket.on('private_message', (data) => {
+    const { from, to, content } = data;
+    const room = [from, to].sort().join('#');
+    
+    const message = {
+      from,
+      to,
+      content,
+      timestamp: new Date().toISOString(),
+      room
+    };
+
+    // Store message
+    if (!messages.has(room)) {
+      messages.set(room, []);
+    }
+    messages.get(room).push(message);
+
+    // Send message to room
+    io.to(room).emit('private_message', message);
+    
+    console.log(`Message from ${from} to ${to}: ${content}`);
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+      console.log(`User ${user.username} disconnected`);
+      connectedUsers.delete(socket.id);
+      
+      // Broadcast updated user list
+      const users = Array.from(connectedUsers.values());
+      io.emit('users', users);
+    }
+  });
+});
+
+// API endpoint to get users by role
+app.get('/users', (req, res) => {
+  const { role } = req.query;
+  const users = Array.from(connectedUsers.values());
+  
+  if (role) {
+    const filteredUsers = users.filter(user => user.role === role);
+    res.json({ users: filteredUsers });
+  } else {
+    res.json({ users });
+  }
+});
+
+// API endpoint to get messages for a room
+app.get('/rooms/:roomId/messages', (req, res) => {
+  const { roomId } = req.params;
+  const roomMessages = messages.get(roomId) || [];
+  res.json({ messages: roomMessages });
+});
+
+server.listen(3000, () => {
     console.log(`Server is running on port 3000`);
 });

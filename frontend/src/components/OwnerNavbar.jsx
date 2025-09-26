@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { UserCircleIcon } from "@heroicons/react/24/outline";
+import { UserCircleIcon, ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
 
 const OwnerNavbar = () => {
   const location = useLocation();
@@ -9,6 +9,7 @@ const OwnerNavbar = () => {
     { name: "Dashboard", path: "/admin" },
     { name: "Staff", path: "/admin/staff-management" },
     { name: "Schedule", path: "/admin/schedule-dashboard" },
+    { name: "Chat", path: "/admin/chat" },
   ];
 
   return (
@@ -48,9 +49,12 @@ const OwnerNavbar = () => {
             ))}
           </div>
 
-          {/* User Profile Icon - Now always visible */}
+          {/* User Profile and Chat Icons */}
           <div className="flex items-center gap-2">
-            <Link to="/admin/business-profile" className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300">
+            <Link to="/admin/chat" className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300" title="Chat with Employees">
+              <ChatBubbleLeftRightIcon className="h-6 w-6 text-blue-600 transition-transform duration-200 hover:scale-110" />
+            </Link>
+            <Link to="/admin/business-profile" className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300" title="Business Profile">
               <UserCircleIcon className="h-8 w-8 text-blue-600 transition-transform duration-200 hover:scale-110" />
             </Link>
           </div>
