@@ -8,7 +8,7 @@ import Particles from '../../components/ui/magic/Particles';
 
 const Dashboard = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-twine-50 via-twine-100 to-white relative overflow-hidden">
+    <div className="min-h-screen bg-twine-50 relative overflow-hidden">
       <Particles count={100} />
       <OwnerNavbar />
 

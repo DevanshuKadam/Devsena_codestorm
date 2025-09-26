@@ -132,7 +132,7 @@ const BusinessProfile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-twine-50 via-twine-100 to-white relative overflow-hidden">
+    <div className="min-h-screen bg-twine-50 relative overflow-hidden">
       <OwnerNavbar />
       {/* Particles Background */}
       <Particles count={70} />
