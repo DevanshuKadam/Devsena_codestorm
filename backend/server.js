@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { createServer } from "http"
 import dotenv from "dotenv";
 import { OAuth2Client } from "google-auth-library";
 import { google } from "googleapis";
@@ -8,16 +9,245 @@ import nodemailer from "nodemailer";
 import puppeteer from "puppeteer";
 import QRCode from "qrcode";
 import jwt from "jsonwebtoken";
+import { Server } from "socket.io";
+import { AImodel } from "./geminiAi.js";
 
 dotenv.config();
 
-const app = express();
+const app = express()
+const httpserver = createServer(app)
 
 // JWT Secret for punch-in tokens (in production, use a secure random string)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 app.use(cors());
 app.use(express.json());
+
+const io = new Server(httpserver, {
+    cors: {
+        origin: "http://localhost:5173"
+    }
+})
+
+io.use((socket, next) => {
+    const user_name = socket.handshake.auth.user_name;
+    console.log(user_name)
+    socket.user_name = user_name
+    next()
+});
+
+async function fetchAllemployees(shopId) {
+    const employeesRef = db.collection("employees").where("shopId", "==", shopId);
+    const employeesDoc = await employeesRef.get();
+    return employeesDoc.docs.map(doc => doc.data());
+}
+
+async function fetchShopData(shopId) {
+    const shopRef = db.collection("shops").doc(shopId);
+    const shopDoc = await shopRef.get();
+    return shopDoc.data();
+}
+
+io.on('connection', (socket) => {
+    console.log(socket.id, socket.user_name)
+
+    const actual_history = [{
+        role: "user",
+        parts: [
+            {
+                text: `You are Jharkhand Tourism Assistant, a specialized AI guide for exploring the beautiful state of Jharkhand, India. Your name is Sarthi meaning guide or companion in Hindi.
+
+Your primary functions are:
+1. Help users discover tourist destinations, attractions, and activities in Jharkhand
+2. Generate personalized itineraries based on user preferences, budget, and duration
+3. Provide detailed information about places, timings, entry fees, and best times to visit
+4. Answer tourism-related questions about Jharkhand's culture, history, and attractions
+5. Navigate users through different sections of the tourism website
+6. Save and update itineraries when users request to save their itinerary
+7. Act as a general website assistant for any other queries
+
+When users ask about destinations or attractions, provide comprehensive information including description and highlights, best time to visit, entry fees and timings, nearby attractions, budget estimates, and travel tips.
+
+For general questions about the website, tourism, or any other topics, provide helpful and informative responses without asking follow-up questions.
+
+Only when users specifically ask to generate an itinerary, then ask follow-up questions to gather more details about their preferences before creating the itinerary. Ask about their interests, budget range, preferred duration, accommodation preferences, and any specific places they want to visit.
+
+When the user wants to search for destinations or attractions, generate the response in JSON format as follows:
+{
+  "data-type": "JSON",
+  "search_result": [{destination1}, {destination2}, ...],
+  "summary": "Brief overview of search results"
+}
+
+For itinerary requests, respond with:
+{
+  "data-type": "ITINERARY",
+  "itinerary": {
+    "title": "Itinerary Title",
+    "duration": "X days",
+    "budget": "₹X-₹Y per person",
+    "destinations": ["Destination1", "Destination2"],
+    "day_wise_plan": [
+      {
+        "day": 1,
+        "date": "YYYY-MM-DD",
+        "destinations": ["Destination1", "Destination2"],
+        "activities": ["Activity1", "Activity2"],
+        "accommodation": "Hotel/Resort name"
+      }
+    ],
+    "tips": ["Tip1", "Tip2"]
+  }
+}
+
+After generating an itinerary, always include a short summary about the places visited and cost estimation in paragraph format.
+
+When users ask to save their itinerary, emit a save command with the itinerary data in JSON format as follows. Make sure to include the exact command "SAVE_ITINERARY" in quotes:
+
+{
+  "data-type": "SAVE_ITINERARY",
+  "command": "save",
+  "itinerary": {
+    "title": "Itinerary Title",
+    "duration": "X days",
+    "budget": "₹X-₹Y per person",
+    "destinations": ["Destination1", "Destination2"],
+    "day_wise_plan": [
+      {
+        "day": 1,
+        "date": "YYYY-MM-DD",
+        "destinations": ["Destination1", "Destination2"],
+        "activities": ["Activity1", "Activity2"],
+        "accommodation": "Hotel/Resort name"
+      }
+    ],
+    "tips": ["Tip1", "Tip2"]
+  }
+}
+
+After emitting the save command, respond with only: "Itinerary saved successfully!"
+
+When the user asks to navigate to a page, respond with exactly: open pagename. Available pages are home, destinations, itinerary, marketplace, profile. Do not add any other text or explanation when responding to navigation requests.
+
+Always answer in paragraph format only. Do not use bullet points, numbered lists, or any special characters. Write complete sentences in flowing paragraphs. Keep responses helpful, engaging, and focused on promoting Jharkhand tourism. Always provide practical and accurate information.
+
+`
+            },
+        ],
+    },
+    {
+        role: "user",
+        parts: [
+            { text: JSON.stringify(user_profile) },
+        ],
+    },
+    {
+        role: "user",
+        parts: [
+            { text: JSON.stringify(tourism_destinations) },
+        ],
+    },
+    {
+        role: "user",
+        parts: [
+            { text: "Attractions are now included within each destination data." },
+        ],
+    },
+    {
+        role: "model",
+        parts: [
+            { text: "Namaste! I am Sarthi, your personal tourism guide for Jharkhand. I'm here to help you discover the incredible beauty, culture, and attractions of our state. How can I assist you in planning your Jharkhand adventure?" },
+        ],
+    },]
+
+
+        const chatSession = AImodel.startChat({
+
+            // safetySettings: Adjust safety settings
+            // See https://ai.google.dev/gemini-api/docs/safety-settings
+            history: actual_history
+        });
+
+        socket.on('prompt', async (response) => {
+            console.log(response)
+
+            actual_history.push({
+                role: "user",
+                parts: [
+                    { text: `${response}` }
+                ]
+            })
+
+            try {
+                const result = await chatSession.sendMessage(response);
+                const Airesponse = result.response.text();
+
+                if (Airesponse) {
+                    actual_history.push({
+                        role: "model",
+                        parts: [
+                            { text: `${Airesponse}` }
+                        ]
+                    })
+                }
+                console.log(Airesponse)
+
+                // Check if the AI response contains save itinerary command
+                let isSavingItinerary = false;
+                try {
+                    const responseText = Airesponse;
+                    if (responseText.includes('"data-type": "SAVE_ITINERARY"')) {
+                        isSavingItinerary = true;
+                        // Extract JSON from the response
+                        const jsonMatch = responseText.match(/\{[\s\S]*"data-type":\s*"SAVE_ITINERARY"[\s\S]*\}/);
+                        if (jsonMatch) {
+                            const saveData = JSON.parse(jsonMatch[0]);
+                            if (saveData.itinerary) {
+                                // Save itinerary to in-memory array
+                                const itineraryId = `itinerary_${Date.now()}`;
+                                const itineraryToSave = {
+                                    id: itineraryId,
+                                    title: saveData.itinerary.title,
+                                    duration: saveData.itinerary.duration,
+                                    budget: saveData.itinerary.budget,
+                                    destinations: saveData.itinerary.destinations,
+                                    day_wise_plan: saveData.itinerary.day_wise_plan,
+                                    tips: saveData.itinerary.tips || [],
+                                    user_id: socket.user_name || "anonymous",
+                                    created_by: "AI Assistant",
+                                    created_at: new Date().toISOString(),
+                                    updated_at: new Date().toISOString(),
+                                    status: "active"
+                                };
+
+                                // Add to in-memory array
+                                all_itineraries.itineraries.push(itineraryToSave);
+
+                                console.log("Itinerary saved:", itineraryToSave);
+                            }
+                        }
+                    }
+                } catch (parseError) {
+                    console.log("Could not parse save itinerary command from AI response:", parseError);
+                }
+
+                // Emit response only when saving itinerary with success message, otherwise emit the AI response
+                if (isSavingItinerary) {
+                    socket.emit("response", "Itinerary saved successfully!");
+                } else {
+                    socket.emit("response", Airesponse);
+                }
+
+            }
+            catch (err) {
+                socket.emit("error", "some internal error occured")
+                console.error(err)
+            }
+
+        })
+    })
+
+
 
 // Google OAuth2 client for redirect flow
 const oauth2Client = new OAuth2Client(
@@ -183,39 +413,39 @@ app.get("/auth/status", (req, res) => {
 
 app.post("/owner/register", async (req, res) => {
     try {
-      const { googleId, shopName, businessHours, ownerPhone, mapsUrl, roles } = req.body;
-  
-      const ownerRef = db.collection("owners").doc(googleId);
-      const ownerDoc = await ownerRef.get();
-  
-      if (!ownerDoc.exists) {
-        return res.status(404).json({ success: false, message: "Owner not found" });
-      }
-  
-      await ownerRef.update({
-        phone: ownerPhone,
-        mapsUrl,
-        isRegistered: true,
-      });
-  
-      const shopRef = db.collection("shops").doc();
-      await shopRef.set({
-        shopId: shopRef.id,
-        ownerId: googleId,
-        shopName,
-        businessHours: businessHours || [],
-        roles: roles || [],
-        mapsUrl,
-        createdAt: new Date(),
-      });
-  
-      res.json({ success: true, shopId: shopRef.id });
+        const { googleId, shopName, businessHours, ownerPhone, mapsUrl, roles } = req.body;
+
+        const ownerRef = db.collection("owners").doc(googleId);
+        const ownerDoc = await ownerRef.get();
+
+        if (!ownerDoc.exists) {
+            return res.status(404).json({ success: false, message: "Owner not found" });
+        }
+
+        await ownerRef.update({
+            phone: ownerPhone,
+            mapsUrl,
+            isRegistered: true,
+        });
+
+        const shopRef = db.collection("shops").doc();
+        await shopRef.set({
+            shopId: shopRef.id,
+            ownerId: googleId,
+            shopName,
+            businessHours: businessHours || [],
+            roles: roles || [],
+            mapsUrl,
+            createdAt: new Date(),
+        });
+
+        res.json({ success: true, shopId: shopRef.id });
     } catch (err) {
-      console.error("Registration Error:", err);
-      res.status(500).json({ success: false, message: "Server error" });
+        console.error("Registration Error:", err);
+        res.status(500).json({ success: false, message: "Server error" });
     }
-  });
-  
+});
+
 
 
 // Get shop by owner ID
@@ -319,7 +549,7 @@ app.post("/owner/add-employee", async (req, res) => {
   - Shift Scheduler Team`,
         };
 
-        const response = await transporter.sendMail(mailOptions);
+        await transporter.sendMail(mailOptions);
 
         res.json({ success: true, message: "Employee onboarded and email sent" });
     } catch (err) {
@@ -351,6 +581,21 @@ app.get("/owner/:googleId", async (req, res) => {
     }
 });
 
+app.post("/employee/login", async(req, res) => {
+    const { email, password } = req.body;
+    const empRef = db.collection("employees").where("email", "==", email);
+    const empDoc = await empRef.get();
+    if (!empDoc.exists) {
+        return res.status(404).json({ success: false, message: "Employee not found" });
+    }
+
+    if (empDoc.data().password !== password) {
+        return res.status(401).json({ success: false, message: "Invalid password" });
+    }
+
+    res.json({ success: true, employeeId : empDoc.data().employeeId });
+})
+
 // Update employee availability (full week)
 app.post("/employee/:employeeId/availability", async (req, res) => {
     try {
@@ -378,10 +623,15 @@ app.post("/employee/:employeeId/availability", async (req, res) => {
 });
 
 // Update single day availability
-app.patch("/employee/:employeeId/availability/:weekday", async (req, res) => {
+app.patch("/employee/:employeeId/update-availability", async (req, res) => {
     try {
-        const { employeeId, weekday } = req.params;
-        const { start, end, isDayOff } = req.body;
+        const { employeeId } = req.params;
+        const { weekday, start, end, isDayOff } = req.body;
+
+        // Validate required fields
+        if (weekday === undefined || weekday === null) {
+            return res.status(400).json({ success: false, message: "Weekday is required" });
+        }
 
         // Fetch employee
         const empRef = db.collection("employees").doc(employeeId);
@@ -583,6 +833,275 @@ app.get("/calendar/events/:googleId", async (req, res) => {
         res.status(500).json({ success: false, message: "Failed to get calendar events" });
     }
 });
+
+
+app.post("/week-schedule", async (req, res) => {
+    const { shopId, minimumHours = 8, maximumHours = 40, prompt } = req.body;
+
+    const employeeData = await fetchAllemployees(shopId);
+    const shopData = await fetchShopData(shopId);
+
+    const history = [
+        {
+            role: "user",
+            parts: [
+                {
+                    text: `You will be provided with the shop's details, including its working hours for each day of the week, as well as the list of employees along with their availability for the entire week. Your task is to generate a complete weekly schedule for all employees, ensuring that ALL working hours of the shop are FULLY COVERED with NO GAPS.
+
+CRITICAL REQUIREMENT: The shop's operating hours must be covered entirely - there should be NO time periods during business hours where no employee is scheduled to work. Every minute of the shop's operating hours must have at least one employee assigned.
+
+IMPORTANT CONSTRAINTS:
+- Maximum working hours per employee per week: ${maximumHours} hours
+- Minimum working hours per employee per week: ${minimumHours} hours
+- Custom user requirements: ${prompt || 'No specific requirements provided'}
+- MANDATORY: Complete coverage of all shop operating hours with no gaps
+
+Assign employees to shifts based on their availability, and if no employee is available for a particular shift, assign the employee whose availability is closest and include an incentive for that shift. The schedule should be balanced, avoiding overloading a single employee whenever possible. Respect the maximum working hours constraint and ensure fair distribution of shifts among all employees.
+
+PRIMARY OBJECTIVE: Ensure 100% coverage of shop operating hours. If necessary, overlap shifts or assign multiple employees to ensure continuous coverage throughout all business hours.
+
+Present the schedule in JSON format for all workdays of the week (Sunday = 0 to Saturday = 6), including the shop ID, day-wise schedule, shift start and end times, and assigned employee IDs. Additionally, provide brief AI-powered suggestions for optimizing the schedule in short paragraph format.
+
+The JSON response structure should follow this format:
+{
+  "shopId": "shop_123",
+  "schedule": [
+    {
+      "workday": 0,
+      "timings": [
+        { "start": "09:00", "end": "13:00", "employeeId": "emp_1" },
+        { "start": "13:00", "end": "17:00", "employeeId": "emp_2" }
+      ]
+    },
+    {
+      "workday": 1,
+      "timings": [
+        { "start": "10:00", "end": "14:00", "employeeId": "emp_2" }
+      ]
+    },
+    ...
+    {
+      "workday": 6,
+      "timings": [
+        { "start": "12:00", "end": "16:00", "employeeId": "emp_3" }
+      ]
+    }
+  ],
+  "ai_suggestions": "Consider hiring additional weekend staff to reduce overtime costs. Adjust Wednesday afternoon coverage to prevent gaps. Cross-train employees to improve schedule flexibility and reduce bottlenecks."
+}
+
+Ensure that every day of the week is included in the schedule, all shop hours are covered, and incentives are noted whenever an employee is assigned outside their usual availability. Provide concise AI suggestions in a single paragraph format focusing on the most important recommendations.` },
+            ],
+        },
+        {
+            role: "user",
+            parts: [
+                { text: `SHOP DATA: ${JSON.stringify(shopData)}` },
+            ],
+        },
+        {
+            role: "user",
+            parts: [
+                { text: `EMPLOYEE DATA: ${JSON.stringify(employeeData)}` },
+            ],
+        },
+    ]
+
+    try {
+        const chatSession = AImodel.startChat({
+            history
+        });
+
+        const result = await chatSession.sendMessage("Generate the weekly schedule based on the provided data and constraints.");
+        const response = result.response.text();
+
+        // Parse the JSON response
+        let scheduleData;
+        try {
+            // Extract JSON from the response
+            const jsonMatch = response.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                scheduleData = JSON.parse(jsonMatch[0]);
+            } else {
+                throw new Error("No valid JSON found in response");
+            }
+        } catch (parseError) {
+            console.error("Error parsing AI response:", parseError);
+            return res.status(500).json({ 
+                success: false, 
+                message: "Failed to parse schedule response",
+                rawResponse: response 
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            schedule: scheduleData,
+            message: "Weekly schedule generated successfully"
+        });
+
+    } catch (err) {
+        console.error("Schedule Generation Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to generate schedule",
+            error: err.message 
+        });
+    }
+})
+
+
+app.post("/save-week-schedule", async(req, res) => {
+    try {
+        const { shopId, schedule, ownerId } = req.body;
+        
+        if (!ownerId) {
+            return res.status(400).json({ success: false, message: "Owner ID is required" });
+        }
+
+        // Get owner's tokens
+        const ownerRef = db.collection("owners").doc(ownerId);
+        const ownerDoc = await ownerRef.get();
+
+        if (!ownerDoc.exists) {
+            return res.status(404).json({ success: false, message: "Owner not found" });
+        }
+
+        const ownerData = ownerDoc.data();
+        if (!ownerData.accessToken) {
+            return res.status(401).json({ success: false, message: "No calendar access" });
+        }
+
+        // Set up OAuth2 client with owner's tokens
+        const ownerOAuth2Client = new OAuth2Client(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET,
+            process.env.GOOGLE_REDIRECT_URI
+        );
+
+        ownerOAuth2Client.setCredentials({
+            access_token: ownerData.accessToken,
+            refresh_token: ownerData.refreshToken
+        });
+
+        // Create calendar service
+        const calendar = google.calendar({ version: 'v3', auth: ownerOAuth2Client });
+
+        // Get next week's dates starting from tomorrow (Sunday to Saturday)
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(now.getDate() + 1); // Tomorrow
+        tomorrow.setHours(0, 0, 0, 0);
+        
+        const currentDay = tomorrow.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        const startOfWeek = new Date(tomorrow);
+        startOfWeek.setDate(tomorrow.getDate() - currentDay); // Go back to Sunday of next week
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        // Get employee details for email addresses
+        const employeeEmails = {};
+        for (const daySchedule of schedule) {
+            for (const timing of daySchedule.timings) {
+                if (!employeeEmails[timing.employeeId]) {
+                    const empRef = db.collection("employees").doc(timing.employeeId);
+                    const empDoc = await empRef.get();
+                    if (empDoc.exists) {
+                        employeeEmails[timing.employeeId] = empDoc.data().email;
+                    }
+                }
+            }
+        }
+
+        // Create calendar events for each day
+        const createdEvents = [];
+        for (const daySchedule of schedule) {
+            const workday = daySchedule.workday; // 0 = Sunday, 1 = Monday, etc.
+            const eventDate = new Date(startOfWeek);
+            eventDate.setDate(startOfWeek.getDate() + workday);
+
+            for (const timing of daySchedule.timings) {
+                const startDateTime = new Date(eventDate);
+                const [startHour, startMinute] = timing.start.split(':').map(Number);
+                startDateTime.setHours(startHour, startMinute, 0, 0);
+
+                const endDateTime = new Date(eventDate);
+                const [endHour, endMinute] = timing.end.split(':').map(Number);
+                endDateTime.setHours(endHour, endMinute, 0, 0);
+
+                // Get employee name for event title
+                const empRef = db.collection("employees").doc(timing.employeeId);
+                const empDoc = await empRef.get();
+                const employeeName = empDoc.exists ? empDoc.data().name : `Employee ${timing.employeeId}`;
+
+                const event = {
+                    summary: `${employeeName} - Work Shift`,
+                    description: timing.incentive ? `Work Shift (${timing.incentive})` : 'Work Shift',
+                    start: {
+                        dateTime: startDateTime.toISOString(),
+                        timeZone: 'Asia/Kolkata',
+                    },
+                    end: {
+                        dateTime: endDateTime.toISOString(),
+                        timeZone: 'Asia/Kolkata',
+                    },
+                    attendees: employeeEmails[timing.employeeId] ? [
+                        { email: employeeEmails[timing.employeeId] }
+                    ] : [],
+                    reminders: {
+                        useDefault: false,
+                        overrides: [
+                            { method: 'email', minutes: 24 * 60 },
+                            { method: 'popup', minutes: 60 },
+                        ],
+                    },
+                };
+
+                try {
+                    const response = await calendar.events.insert({
+                        calendarId: 'primary',
+                        resource: event,
+                    });
+                    createdEvents.push({
+                        eventId: response.data.id,
+                        employeeId: timing.employeeId,
+                        start: timing.start,
+                        end: timing.end,
+                        date: eventDate.toISOString().split('T')[0]
+                    });
+                } catch (eventError) {
+                    console.error(`Error creating event for ${timing.employeeId}:`, eventError);
+                }
+            }
+        }
+
+        // Save schedule to database
+        const docRef = db.collection("schedules").doc();
+        await docRef.set({
+            shopId,
+            schedule,
+            scheduleId: docRef.id,
+            ownerId,
+            createdAt: new Date(),
+            calendarEvents: createdEvents
+        });
+
+        res.json({ 
+            success: true, 
+            message: "Schedule saved and calendar events created successfully",
+            scheduleId: docRef.id,
+            eventsCreated: createdEvents.length,
+            events: createdEvents
+        });
+
+    } catch (err) {
+        console.error("Save Schedule Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to save schedule and create calendar events",
+            error: err.message 
+        });
+    }
+})
 
 // Delete calendar event
 app.delete("/calendar/events/:googleId/:eventId", async (req, res) => {
@@ -1218,6 +1737,6 @@ app.get("/shop/:shopId/punch-records", async (req, res) => {
     }
 });
 
-app.listen(3000, () => {
+httpserver.listen(3000, () => {
     console.log(`Server is running on port 3000`);
 });
