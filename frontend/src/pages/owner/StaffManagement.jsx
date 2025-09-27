@@ -218,42 +218,65 @@ const StaffManagement = () => {
     setStaff(prev => prev.filter(s => s.id !== id));
   }, []);
 
-  const getAvailabilityHours = useCallback((availability) => {
-    if (!availability) return 0;
-    const totalHours = Object.values(availability).reduce((total, daySlots) => {
-      return total + daySlots.reduce((dayTotal, slot) => {
-        const [start, end] = slot.split('-');
-        const startTime = new Date(`2000-01-01T${start}:00`);
-        const endTime = new Date(`2000-01-01T${end}:00`);
-        // Handle midnight wrap-around (simplified for this mock data)
-        const duration = (endTime - startTime) / (1000 * 60 * 60);
-        return dayTotal + (duration < 0 ? duration + 24 : duration);
-      }, 0);
+  const getAvailabilityHours = (availabilities) => {
+    if (!availabilities || !Array.isArray(availabilities)) return 0;
+    
+    return availabilities.reduce((total, availability) => {
+      if (availability.isDayOff) return total;
+      
+      const startTime = new Date(`2000-01-01T${availability.start}:00`);
+      const endTime = new Date(`2000-01-01T${availability.end}:00`);
+      const duration = (endTime - startTime) / (1000 * 60 * 60);
+      
+      // Handle midnight wrap-around
+      return total + (duration < 0 ? duration + 24 : duration);
     }, 0);
-    return totalHours;
-  }, []);
+  };
 
-  // Memoized AvailabilityGrid to prevent re-renders
-  const AvailabilityGrid = useMemo(() => ({ availability }) => (
-    <div className="grid grid-cols-7 gap-2 text-xs">
-      {daysOfWeek.map(day => (
-        <div key={day} className="text-center">
-          <div className="font-medium text-blue-700 mb-1">{day.substring(0, 3)}</div>
-          <div className="space-y-1">
-            {availability && availability[day] && availability[day].length > 0 ? (
-              availability[day].map((slot, index) => (
-                <div key={index} className="bg-blue-100 text-blue-700 px-1 py-1 rounded text-xs">
-                  {slot.replace('-', '-')}
-                </div>
-              ))
-            ) : (
-              <div className="text-gray-400 text-xs">Off</div>
-            )}
+  const AvailabilityGrid = ({ availabilities }) => {
+    // Convert weekday number to day name
+    const getDayName = (weekday) => {
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      return dayNames[weekday];
+    };
+
+    // Group availabilities by weekday
+    const availabilityByDay = {};
+    if (availabilities && Array.isArray(availabilities)) {
+      availabilities.forEach(availability => {
+        const dayName = getDayName(availability.weekday);
+        if (!availabilityByDay[dayName]) {
+          availabilityByDay[dayName] = [];
+        }
+        availabilityByDay[dayName].push(availability);
+      });
+    }
+
+    return (
+      <div className="grid grid-cols-7 gap-2 text-xs">
+        {daysOfWeek.map(day => (
+          <div key={day} className="text-center">
+            <div className="font-medium text-blue-700 mb-1">{day.substring(0, 3)}</div>
+            <div className="space-y-1">
+              {availabilityByDay[day] && availabilityByDay[day].length > 0 ? (
+                availabilityByDay[day].map((availability, index) => (
+                  <div key={index} className="bg-blue-100 text-blue-700 px-1 py-1 rounded text-xs">
+                    {availability.isDayOff ? (
+                      <span className="text-gray-500">Off</span>
+                    ) : (
+                      <span>{availability.start} - {availability.end}</span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-gray-400 text-xs">Off</div>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
-  ), [daysOfWeek]);
+        ))}
+      </div>
+    );
+  };
 
   // Loading state
   if (isLoading) {
@@ -403,10 +426,10 @@ const StaffManagement = () => {
                   <div>
                     <h4 className="text-sm font-medium text-blue-700 mb-4 flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
-                      Weekly Availability ({getAvailabilityHours(member.availability).toFixed(1)} hours/week)
+                      Weekly Availability ({getAvailabilityHours(member.availabilities).toFixed(1)} hours/week)
                     </h4>
-                    {member.availability ? (
-                      <AvailabilityGrid availability={member.availability} />
+                    {member.availabilities && member.availabilities.length > 0 ? (
+                      <AvailabilityGrid availabilities={member.availabilities} />
                     ) : (
                       <div className="text-center py-4 text-gray-500">
                         <p className="text-sm">No availability set yet</p>

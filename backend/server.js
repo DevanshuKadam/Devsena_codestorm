@@ -1190,12 +1190,13 @@ IMPORTANT CONSTRAINTS:
 - Minimum working hours per employee per week: ${minimumHours} hours
 - Custom user requirements: ${prompt || 'No specific requirements provided'}
 - MANDATORY: Complete coverage of all shop operating hours with no gaps
+- CRITICAL: End time must ALWAYS be after start time for every shift (e.g., 09:00-17:00, NOT 17:00-09:00)
 
 Assign employees to shifts based on their availability, and if no employee is available for a particular shift, assign the employee whose availability is closest and include an incentive for that shift. The schedule should be balanced, avoiding overloading a single employee whenever possible. Respect the maximum working hours constraint and ensure fair distribution of shifts among all employees.
 
 PRIMARY OBJECTIVE: Ensure 100% coverage of shop operating hours. If necessary, overlap shifts or assign multiple employees to ensure continuous coverage throughout all business hours.
 
-Present the schedule in JSON format for all workdays of the week (Sunday = 0 to Saturday = 6), including the shop ID, day-wise schedule, shift start and end times, and assigned employee IDs. Additionally, provide brief AI-powered suggestions for optimizing the schedule in short paragraph format.
+Present the schedule in JSON format for all workdays of the week (Sunday = 0 to Saturday = 6), including the shop ID, day-wise schedule, shift start and end times, assigned employee IDs, employee names, and employee emails. Additionally, provide brief AI-powered suggestions for optimizing the schedule in short paragraph format.
 
 The JSON response structure should follow this format:
 {
@@ -1204,28 +1205,52 @@ The JSON response structure should follow this format:
     {
       "workday": 0,
       "timings": [
-        { "start": "09:00", "end": "13:00", "employeeId": "emp_1" },
-        { "start": "13:00", "end": "17:00", "employeeId": "emp_2" }
+        { 
+          "start": "09:00", 
+          "end": "13:00", 
+          "employeeId": "emp_1",
+          "employeeName": "John Doe",
+          "employeeEmail": "john.doe@example.com"
+        },
+        { 
+          "start": "13:00", 
+          "end": "17:00", 
+          "employeeId": "emp_2",
+          "employeeName": "Jane Smith",
+          "employeeEmail": "jane.smith@example.com"
+        }
       ]
     },
     {
       "workday": 1,
       "timings": [
-        { "start": "10:00", "end": "14:00", "employeeId": "emp_2" }
+        { 
+          "start": "10:00", 
+          "end": "14:00", 
+          "employeeId": "emp_2",
+          "employeeName": "Jane Smith",
+          "employeeEmail": "jane.smith@example.com"
+        }
       ]
     },
     ...
     {
       "workday": 6,
       "timings": [
-        { "start": "12:00", "end": "16:00", "employeeId": "emp_3" }
+        { 
+          "start": "12:00", 
+          "end": "16:00", 
+          "employeeId": "emp_3",
+          "employeeName": "Mike Johnson",
+          "employeeEmail": "mike.johnson@example.com"
+        }
       ]
     }
   ],
   "ai_suggestions": "Consider hiring additional weekend staff to reduce overtime costs. Adjust Wednesday afternoon coverage to prevent gaps. Cross-train employees to improve schedule flexibility and reduce bottlenecks."
 }
 
-Ensure that every day of the week is included in the schedule, all shop hours are covered, and incentives are noted whenever an employee is assigned outside their usual availability. Provide concise AI suggestions in a single paragraph format focusing on the most important recommendations.` },
+Ensure that every day of the week is included in the schedule, all shop hours are covered, and incentives are noted whenever an employee is assigned outside their usual availability. For each timing entry, include the employeeId, employeeName, and employeeEmail from the provided employee data. Provide concise AI suggestions in a single paragraph format focusing on the most important recommendations.` },
             ],
         },
         {
@@ -1363,10 +1388,18 @@ app.post("/save-week-schedule", async(req, res) => {
                 const [endHour, endMinute] = timing.end.split(':').map(Number);
                 endDateTime.setHours(endHour, endMinute, 0, 0);
 
+                // Validate time range - end time must be after start time
+                if (endDateTime <= startDateTime) {
+                    console.error(`Invalid time range for ${timing.employeeId}: ${timing.start} - ${timing.end}. End time must be after start time.`);
+                    continue; // Skip this timing entry
+                }
+
                 // Get employee name for event title
                 const empRef = db.collection("employees").doc(timing.employeeId);
                 const empDoc = await empRef.get();
                 const employeeName = empDoc.exists ? empDoc.data().name : `Employee ${timing.employeeId}`;
+
+                console.log(`Creating event for ${employeeName}: ${timing.start} - ${timing.end} on ${eventDate.toISOString().split('T')[0]}`);
 
                 const event = {
                     summary: `${employeeName} - Work Shift`,
@@ -1403,6 +1436,7 @@ app.post("/save-week-schedule", async(req, res) => {
                         end: timing.end,
                         date: eventDate.toISOString().split('T')[0]
                     });
+                    console.log(`Successfully created event: ${response.data.id}`);
                 } catch (eventError) {
                     console.error(`Error creating event for ${timing.employeeId}:`, eventError);
                 }
