@@ -25,6 +25,8 @@ import AuthError from './pages/owner/AuthError';
 import ProtectedRoute from './components/ProtectedRoute';
 import EmployeeProtectedRoute from './components/EmployeeProtectedRoute';
 import Home from './pages/Home';
+import { ChatProvider } from './contexts/ChatContext';
+import GlobalChat from './components/GlobalChat';
 
 function App() {
   return (
