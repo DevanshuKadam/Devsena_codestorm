@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useEmployeeAuth } from '../contexts/EmployeeAuthContext';
 import { User, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import Particles from '../components/ui/magic/Particles';
 
 const EmployeeLogin = () => {
   const [formData, setFormData] = useState({
-    employeeId: '',
+    email: '',
     password: ''
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  const { login } = useEmployeeAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -31,15 +29,45 @@ const EmployeeLogin = () => {
     setError('');
 
     try {
-      const result = await login(formData.employeeId, formData.password);
-      
+      console.log('Employee Login Attempt:', { email: formData.email });
+
+      const response = await fetch('http://localhost:3000/employee/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Login failed');
+      }
+
       if (result.success) {
-        navigate('/dashboard');
+        console.log('Employee login successful:', result.employee);
+        
+        // Store employee data in localStorage
+        localStorage.setItem('employeeData', JSON.stringify(result.employee));
+        
+        // Navigate to employee dashboard
+        navigate('/employee/dashboard');
       } else {
-        setError(result.message);
+        setError(result.message || 'Login failed');
       }
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
+      console.error('Employee Login Error:', err);
+      
+      // Handle specific error types
+      if (err.message.includes('Failed to fetch') || err.message.includes('ERR_CONNECTION_REFUSED')) {
+        setError('Backend server is not running. Please start the server and try again.');
+      } else {
+        setError(err.message || 'An unexpected error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -65,24 +93,24 @@ const EmployeeLogin = () => {
           {/* Login Form */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-blue-200/50 p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Employee ID Field */}
+              {/* Email Field */}
               <div>
-                <label htmlFor="employeeId" className="block text-sm font-medium text-gray-700 mb-2">
-                  Employee ID
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <User className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
-                    id="employeeId"
-                    name="employeeId"
-                    type="text"
+                    id="email"
+                    name="email"
+                    type="email"
                     required
-                    value={formData.employeeId}
+                    value={formData.email}
                     onChange={handleChange}
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="Enter your employee ID"
+                    placeholder="Enter your email address"
                   />
                 </div>
               </div>

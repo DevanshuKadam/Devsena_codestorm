@@ -413,39 +413,39 @@ app.get("/auth/status", (req, res) => {
 
 app.post("/owner/register", async (req, res) => {
     try {
-        const { googleId, shopName, businessHours, ownerPhone, mapsUrl, roles } = req.body;
-
-        const ownerRef = db.collection("owners").doc(googleId);
-        const ownerDoc = await ownerRef.get();
-
-        if (!ownerDoc.exists) {
-            return res.status(404).json({ success: false, message: "Owner not found" });
-        }
-
-        await ownerRef.update({
-            phone: ownerPhone,
-            mapsUrl,
-            isRegistered: true,
-        });
-
-        const shopRef = db.collection("shops").doc();
-        await shopRef.set({
-            shopId: shopRef.id,
-            ownerId: googleId,
-            shopName,
-            businessHours: businessHours || [],
-            roles: roles || [],
-            mapsUrl,
-            createdAt: new Date(),
-        });
-
-        res.json({ success: true, shopId: shopRef.id });
+      const { googleId, shopName, businessHours, ownerPhone, mapsUrl, roles } = req.body;
+  
+      const ownerRef = db.collection("owners").doc(googleId);
+      const ownerDoc = await ownerRef.get();
+  
+      if (!ownerDoc.exists) {
+        return res.status(404).json({ success: false, message: "Owner not found" });
+      }
+  
+      await ownerRef.update({
+        phone: ownerPhone,
+        mapsUrl,
+        isRegistered: true,
+      });
+  
+      const shopRef = db.collection("shops").doc();
+      await shopRef.set({
+        shopId: shopRef.id,
+        ownerId: googleId,
+        shopName,
+        businessHours: businessHours || [],
+        roles: roles || [],
+        mapsUrl,
+        createdAt: new Date(),
+      });
+  
+      res.json({ success: true, shopId: shopRef.id });
     } catch (err) {
-        console.error("Registration Error:", err);
-        res.status(500).json({ success: false, message: "Server error" });
+      console.error("Registration Error:", err);
+      res.status(500).json({ success: false, message: "Server error" });
     }
-});
-
+  });
+  
 
 
 // Get shop by owner ID
@@ -671,20 +671,53 @@ app.get("/owner/:googleId", async (req, res) => {
     }
 });
 
-app.post("/employee/login", async(req, res) => {
-    const { email, password } = req.body;
-    const empRef = db.collection("employees").where("email", "==", email);
-    const empDoc = await empRef.get();
-    if (!empDoc.exists) {
-        return res.status(404).json({ success: false, message: "Employee not found" });
-    }
+app.post("/employee/login", async (req, res) => {
+    try {
+        const { email, password } = req.body;
 
-    if (empDoc.data().password !== password) {
-        return res.status(401).json({ success: false, message: "Invalid password" });
-    }
+        if (!email || !password) {
+            return res.status(400).json({ success: false, message: "Email and password are required" });
+        }
 
-    res.json({ success: true, employeeId : empDoc.data().employeeId });
-})
+        console.log("Employee Login Attempt:", { email });
+
+        // Find employee by email
+        const employeesRef = db.collection("employees");
+        const employeesSnapshot = await employeesRef.where("email", "==", email).get();
+
+        if (employeesSnapshot.empty) {
+            console.log("Employee not found for email:", email);
+            return res.status(404).json({ success: false, message: "Employee not found" });
+        }
+
+        const employeeDoc = employeesSnapshot.docs[0];
+        const employeeData = employeeDoc.data();
+
+        console.log("Employee found:", { employeeId: employeeData.employeeId, name: employeeData.name });
+
+        // Check password
+        if (employeeData.password !== password) {
+            console.log("Invalid password for employee:", email);
+            return res.status(401).json({ success: false, message: "Invalid password" });
+        }
+
+        // Remove password from response
+        const { password: _, ...safeEmployeeData } = employeeData;
+
+        console.log("Employee login successful:", { employeeId: employeeData.employeeId });
+
+        res.json({ 
+            success: true, 
+            employee: {
+                employeeId: employeeData.employeeId,
+                ...safeEmployeeData
+            }
+        });
+    } catch (err) {
+        console.error("Employee Login Error:", err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
 
 // Update employee availability (full week)
 app.post("/employee/:employeeId/availability", async (req, res) => {

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import Particles from '../components/ui/magic/Particles';
 import QRScanner from '../components/QRScanner';
-import { useEmployeeAuth } from '../contexts/EmployeeAuthContext';
 import apiService from '../services/api';
 import { Camera, DollarSign, Clock, Calendar, AlertTriangle, LogOut, LogIn, CheckCircle, XCircle } from 'lucide-react';
 
@@ -42,25 +41,48 @@ const ShimmerCard = ({ children, className = "" }) => (
 );
 
 export default function TimeClockAndEarnings() {
-  const { employee, isAuthenticated } = useEmployeeAuth();
+  const [employee, setEmployee] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [timeStatus, setTimeStatus] = useState(mockInitialTimeStatus);
   const [showScanner, setShowScanner] = useState(false);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [punchRecords, setPunchRecords] = useState([]);
 
-  // Check if employee is punched in today
+  // Check authentication and load employee data
   useEffect(() => {
-    if (isAuthenticated && employee) {
-      checkTodayPunchStatus();
-      loadPunchRecords();
+    const employeeData = localStorage.getItem('employeeData');
+    if (employeeData) {
+      try {
+        const parsedEmployeeData = JSON.parse(employeeData);
+        setEmployee(parsedEmployeeData);
+        setIsAuthenticated(true);
+        checkTodayPunchStatus(parsedEmployeeData);
+        loadPunchRecords(parsedEmployeeData);
+      } catch (error) {
+        console.error('Error parsing employee data:', error);
+        localStorage.removeItem('employeeData');
+        setIsAuthenticated(false);
+      }
+    } else {
+      setIsAuthenticated(false);
     }
-  }, [isAuthenticated, employee]);
+  }, []);
 
-  const checkTodayPunchStatus = async () => {
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('employeeData');
+    setEmployee(null);
+    setIsAuthenticated(false);
+    window.location.href = '/employee-login';
+  };
+
+  const checkTodayPunchStatus = async (employeeData = employee) => {
+    if (!employeeData) return;
+    
     try {
       const today = new Date().toISOString().split('T')[0];
-      const response = await apiService.getEmployeePunchRecords(employee.id, today, today, 10);
+      const response = await apiService.getEmployeePunchRecords(employeeData.employeeId, today, today, 10);
       
       if (response.success) {
         const todayRecords = response.punchRecords;
@@ -92,9 +114,11 @@ export default function TimeClockAndEarnings() {
     }
   };
 
-  const loadPunchRecords = async () => {
+  const loadPunchRecords = async (employeeData = employee) => {
+    if (!employeeData) return;
+    
     try {
-      const response = await apiService.getEmployeePunchRecords(employee.id, null, null, 20);
+      const response = await apiService.getEmployeePunchRecords(employeeData.employeeId, null, null, 20);
       if (response.success) {
         setPunchRecords(response.punchRecords);
       }
@@ -119,7 +143,7 @@ export default function TimeClockAndEarnings() {
       // For now, we'll use a mock password since we don't store it in the context
       const mockPassword = 'czczpn74bpq'; // This should be handled properly in production
       
-      const response = await apiService.punchInScan(employee.id, mockPassword, qrToken);
+      const response = await apiService.punchInScan(employee.employeeId, mockPassword, qrToken);
       
       if (response.success) {
         setTimeStatus({
@@ -156,7 +180,7 @@ export default function TimeClockAndEarnings() {
       // Note: In a real app, you'd need to securely store and pass the password
       const mockPassword = 'temp_password'; // This should be handled properly in production
       
-      const response = await apiService.punchOut(employee.id, mockPassword);
+      const response = await apiService.punchOut(employee.employeeId, mockPassword);
       
       if (response.success) {
         setTimeStatus({
