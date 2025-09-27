@@ -70,13 +70,13 @@ const Dashboard = () => {
             value={mockMetrics.openPositions} 
             label="Open Positions" 
             icon={DocumentTextIcon} // Updated icon name (used DocumentTextIcon for FileText)
-            gradient="from-indigo-500 to-indigo-700" 
+            gradient="from-amber-500 to-amber-700" 
           />
           <AnimatedCounter 
             value={mockMetrics.nextWeekShifts} 
             label="Next Week Shifts" 
             icon={CalendarDaysIcon} // Updated icon name
-            gradient="from-indigo-500 to-indigo-700" 
+            gradient="from-amber-500 to-amber-700" 
           />
           <AnimatedCounter 
             value={mockMetrics.pendingApprovals} 
