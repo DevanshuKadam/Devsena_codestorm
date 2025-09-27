@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Building2, Users, ArrowRight, Mic, Globe, Cpu, Video, Calendar } from "lucide-react";
+import { Link } from "react-router-dom";
 
 // Hero component embedded within Home
 const Hero = () => {
@@ -101,35 +102,29 @@ const Hero = () => {
 
 // Simple Navbar component
 const Navbar = () => {
-  const handleNavigation = (path) => {
-    // In a real React Router setup, you would use navigate(path)
-    console.log(`Navigate to: ${path}`);
-    alert(`Navigation to ${path} - This would work with React Router`);
-  };
-
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/10 backdrop-blur-lg border-b border-white/20">
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
         <div className="text-2xl font-bold text-white">WorkWise AI</div>
         <div className="hidden md:flex space-x-6">
-          <button 
-            onClick={() => handleNavigation('/')} 
+          <Link 
+            to="/" 
             className="text-blue-100 hover:text-white transition duration-200"
           >
             Home
-          </button>
-          <button 
-            onClick={() => handleNavigation('/about')} 
+          </Link>
+          <Link 
+            to="/about" 
             className="text-blue-100 hover:text-white transition duration-200"
           >
             About
-          </button>
-          <button 
-            onClick={() => handleNavigation('/contact')} 
+          </Link>
+          <Link 
+            to="/contact" 
             className="text-blue-100 hover:text-white transition duration-200"
           >
             Contact
-          </button>
+          </Link>
         </div>
       </div>
     </nav>
@@ -137,12 +132,6 @@ const Navbar = () => {
 };
 
 const Home = () => {
-  const handleNavigation = (path) => {
-    // In a real React Router setup, you would use navigate(path)
-    console.log(`Navigate to: ${path}`);
-    alert(`Navigation to ${path} - This would work with React Router in a real app`);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200">
       {/* Navbar */}
@@ -163,42 +152,42 @@ const Home = () => {
         {/* Card Layout */}
         <div id="owner-section" className="grid grid-cols-1 md:grid-cols-2 gap-10 text-left">
           {/* Owner Card */}
-          <div className="bg-blue-100/30 backdrop-blur-lg rounded-3xl shadow-xl border border-white/30 p-8 transition duration-500 hover:shadow-2xl">
+          <div className="bg-blue-100/30 backdrop-blur-lg rounded-3xl shadow-xl border border-white/30 p-8 transition duration-500 hover:shadow-2xl animate-fadeIn">
             <Building2 className="w-10 h-10 text-blue-600 mb-4" />
             <h2 className="text-2xl font-bold text-gray-900 mb-2">I'm an Owner</h2>
             <p className="text-gray-700 mb-6">
               Register your business, manage your team, and generate AI-optimized schedules effortlessly.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => handleNavigation('/admin/onboarding')}
+              <Link
+                to="/admin/onboarding"
                 className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:from-indigo-600 hover:to-blue-500 transition duration-200 inline-flex items-center justify-center gap-2"
               >
                 Register Business <ArrowRight className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleNavigation('/admin')}
+              </Link>
+              <Link
+                to="/admin/dashboard"
                 className="px-6 py-3 border border-white/30 text-blue-700 font-semibold rounded-xl bg-white/20 hover:bg-white/30 transition duration-200 flex items-center justify-center"
               >
                 Owner Portal
-              </button>
+              </Link>
             </div>
           </div>
 
           {/* Employee Card */}
-          <div className="bg-blue-50/30 backdrop-blur-lg rounded-3xl shadow-xl border border-white/30 p-8 transition duration-500 hover:shadow-2xl">
+          <div className="bg-blue-50/30 backdrop-blur-lg rounded-3xl shadow-xl border border-white/30 p-8 transition duration-500 hover:shadow-2xl animate-fadeIn delay-100">
             <Users className="w-10 h-10 text-indigo-600 mb-4" />
             <h2 className="text-2xl font-bold text-gray-900 mb-2">I'm an Employee</h2>
             <p className="text-gray-700 mb-6">
               Log in with credentials sent by your employer and access your AI-optimized schedule.
             </p>
             <div className="flex">
-              <button
-                onClick={() => handleNavigation('/dashboard')}
+              <Link
+                to="/dashboard"
                 className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-blue-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:from-blue-600 hover:to-indigo-500 transition duration-200 inline-flex items-center justify-center gap-2"
               >
                 Employee Login <ArrowRight className="w-4 h-4" />
-              </button>
+              </Link>
             </div>
           </div>
         </div>
