@@ -16,6 +16,8 @@ const Auth = () => {
 
     if (googleId && email) {
       // Store user data
+      localStorage.removeItem('employeeData');
+      localStorage.removeItem('ownerData');
       localStorage.setItem('ownerData', JSON.stringify({
         googleId,
         email,

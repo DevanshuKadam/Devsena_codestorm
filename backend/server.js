@@ -2106,6 +2106,355 @@ app.get("/shop/:shopId/punch-records", async (req, res) => {
     }
 });
 
+// Employee Dashboard Data Endpoint
+app.get("/employee/:employeeId/dashboard", async (req, res) => {
+    try {
+        const { employeeId } = req.params;
+
+        // Verify employee exists
+        const empRef = db.collection("employees").doc(employeeId);
+        const empDoc = await empRef.get();
+        
+        if (!empDoc.exists) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Employee not found" 
+            });
+        }
+
+        const employeeData = empDoc.data();
+        const shopId = employeeData.shopId;
+
+        // Get current week's schedule from Google Calendar
+        const ownerRef = db.collection("owners").doc(employeeData.ownerId);
+        const ownerDoc = await ownerRef.get();
+        
+        let weeklySchedule = [];
+        let totalShifts = 0;
+        let totalHours = 0;
+        let dailyHours = [0, 0, 0, 0, 0, 0, 0]; // Sunday to Saturday
+
+        if (ownerDoc.exists && ownerDoc.data().accessToken) {
+            try {
+                // Set up OAuth2 client with owner's tokens
+                const ownerOAuth2Client = new OAuth2Client(
+                    process.env.GOOGLE_CLIENT_ID,
+                    process.env.GOOGLE_CLIENT_SECRET,
+                    process.env.GOOGLE_REDIRECT_URI
+                );
+
+                ownerOAuth2Client.setCredentials({
+                    access_token: ownerDoc.data().accessToken,
+                    refresh_token: ownerDoc.data().refreshToken
+                });
+
+                // Create calendar service
+                const calendar = google.calendar({ version: 'v3', auth: ownerOAuth2Client });
+
+                // Get current week's dates (Sunday to Saturday)
+                const now = new Date();
+                const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                const startOfWeek = new Date(now);
+                startOfWeek.setDate(now.getDate() - currentDay); // Go back to Sunday
+                startOfWeek.setHours(0, 0, 0, 0);
+
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
+                endOfWeek.setHours(23, 59, 59, 999);
+
+                // Get calendar events for the current week
+                const eventsResponse = await calendar.events.list({
+                    calendarId: 'primary',
+                    timeMin: startOfWeek.toISOString(),
+                    timeMax: endOfWeek.toISOString(),
+                    singleEvents: true,
+                    orderBy: 'startTime',
+                });
+
+                const events = eventsResponse.data.items || [];
+                
+                // Filter events for this employee and format schedule
+                const employeeEvents = events.filter(event => 
+                    event.summary && event.summary.includes(employeeData.name)
+                );
+
+                // Create weekly schedule structure
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                weeklySchedule = days.map((day, index) => {
+                    const dayEvents = employeeEvents.filter(event => {
+                        const eventDate = new Date(event.start.dateTime || event.start.date);
+                        return eventDate.getDay() === index;
+                    });
+
+                    const shifts = dayEvents.map(event => {
+                        const startTime = new Date(event.start.dateTime || event.start.date);
+                        const endTime = new Date(event.end.dateTime || event.end.date);
+                        
+                        // Calculate hours for this shift
+                        const hours = (endTime - startTime) / (1000 * 60 * 60);
+                        dailyHours[index] += hours;
+                        totalHours += hours;
+
+                        return {
+                            role: employeeData.role || 'Employee',
+                            start: startTime.toLocaleTimeString('en-US', { 
+                                hour: '2-digit', 
+                                minute: '2-digit',
+                                hour12: true 
+                            }),
+                            end: endTime.toLocaleTimeString('en-US', { 
+                                hour: '2-digit', 
+                                minute: '2-digit',
+                                hour12: true 
+                            }),
+                            hours: hours.toFixed(1)
+                        };
+                    });
+
+                    totalShifts += shifts.length;
+
+                    return {
+                        day,
+                        date: new Date(startOfWeek.getTime() + (index * 24 * 60 * 60 * 1000))
+                            .toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                        shifts
+                    };
+                });
+
+            } catch (calendarError) {
+                console.error("Calendar access error:", calendarError);
+                // Continue with empty schedule if calendar access fails
+            }
+        }
+
+        // Get recent punch records for today's status
+        const today = new Date().toISOString().split('T')[0];
+        const punchRecordsQuery = db.collection("punch_records")
+            .where("employeeId", "==", employeeId)
+            .where("timestamp", ">=", new Date(today))
+            .orderBy("timestamp", "desc")
+            .limit(10);
+
+        const punchRecordsSnapshot = await punchRecordsQuery.get();
+        const todayPunchRecords = punchRecordsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            timestamp: doc.data().timestamp.toDate()
+        }));
+
+        // Determine current punch status
+        const punchInRecord = todayPunchRecords.find(record => record.punchType === 'punchin');
+        const punchOutRecord = todayPunchRecords.find(record => record.punchType === 'punchout');
+        
+        let currentStatus = {
+            isPunchedIn: false,
+            punchInTime: null,
+            currentShiftHours: 0.0
+        };
+
+        if (punchInRecord && !punchOutRecord) {
+            currentStatus = {
+                isPunchedIn: true,
+                punchInTime: punchInRecord.timestamp.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                }),
+                currentShiftHours: 0.0
+            };
+        } else if (punchInRecord && punchOutRecord) {
+            currentStatus = {
+                isPunchedIn: false,
+                punchInTime: punchInRecord.timestamp.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                }),
+                currentShiftHours: parseFloat(punchOutRecord.workHours || 0)
+            };
+        }
+
+        // Get upcoming shifts (next 5 shifts)
+        const upcomingShifts = weeklySchedule
+            .flatMap(day => day.shifts.map(shift => ({ ...shift, day: day.day, date: day.date })))
+            .filter((_, i) => i < 5);
+
+        res.json({
+            success: true,
+            employee: {
+                id: employeeId,
+                name: employeeData.name,
+                email: employeeData.email,
+                role: employeeData.role,
+                shopId: shopId
+            },
+            dashboard: {
+                weeklySchedule,
+                totalShifts,
+                totalHours: totalHours.toFixed(1),
+                dailyHours,
+                upcomingShifts,
+                currentStatus,
+                metrics: {
+                    totalShifts,
+                    totalHours: totalHours.toFixed(1),
+                    acknowledgedShifts: Math.round(totalShifts * 0.75), // Mock data for now
+                    daysOff: weeklySchedule.filter(d => d.shifts.length === 0).length
+                }
+            }
+        });
+
+    } catch (err) {
+        console.error("Get Employee Dashboard Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Server error" 
+        });
+    }
+});
+
+// Get employee profile data
+app.get("/employee/:employeeId/profile", async (req, res) => {
+    try {
+        const { employeeId } = req.params;
+
+        // Verify employee exists
+        const empRef = db.collection("employees").doc(employeeId);
+        const empDoc = await empRef.get();
+        
+        if (!empDoc.exists) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Employee not found" 
+            });
+        }
+
+        const employeeData = empDoc.data();
+        const shopId = employeeData.shopId;
+
+        // Get shop data
+        let shopData = null;
+        if (shopId) {
+            const shopRef = db.collection("shops").doc(shopId);
+            const shopDoc = await shopRef.get();
+            if (shopDoc.exists) {
+                shopData = {
+                    id: shopDoc.id,
+                    ...shopDoc.data()
+                };
+            }
+        }
+
+        // Get owner data for company name
+        let ownerData = null;
+        if (employeeData.ownerId) {
+            const ownerRef = db.collection("owners").doc(employeeData.ownerId);
+            const ownerDoc = await ownerRef.get();
+            if (ownerDoc.exists) {
+                const owner = ownerDoc.data();
+                // Remove sensitive tokens
+                const { accessToken, refreshToken, ...safeOwnerData } = owner;
+                ownerData = safeOwnerData;
+            }
+        }
+
+        // Format profile data
+        const profileData = {
+            employeeId: employeeData.employeeId,
+            name: employeeData.name,
+            email: employeeData.email,
+            phone: employeeData.phone || '',
+            role: employeeData.role,
+            wage: employeeData.wage || 0,
+            companyName: shopData?.shopName || ownerData?.name || 'Unknown Company',
+            joinDate: employeeData.createdAt ? employeeData.createdAt.toDate().toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            }) : 'Unknown',
+            address: employeeData.address || '',
+            photoUrl: employeeData.photoUrl || `https://placehold.co/150x150/d4a770/ffffff?text=${employeeData.name?.charAt(0) || 'E'}`,
+            shopId: shopId,
+            ownerId: employeeData.ownerId,
+            availabilities: employeeData.availabilities || [],
+            createdAt: employeeData.createdAt?.toDate() || new Date(),
+            updatedAt: employeeData.updatedAt?.toDate() || new Date()
+        };
+
+        res.json({
+            success: true,
+            profile: profileData,
+            shop: shopData,
+            owner: ownerData
+        });
+
+    } catch (err) {
+        console.error("Get Employee Profile Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Server error" 
+        });
+    }
+});
+
+// Update employee profile
+app.patch("/employee/:employeeId/profile", async (req, res) => {
+    try {
+        const { employeeId } = req.params;
+        const { name, email, phone, address, photoUrl } = req.body;
+
+        // Verify employee exists
+        const empRef = db.collection("employees").doc(employeeId);
+        const empDoc = await empRef.get();
+        
+        if (!empDoc.exists) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Employee not found" 
+            });
+        }
+
+        // Prepare update data
+        const updateData = {
+            updatedAt: new Date()
+        };
+
+        if (name !== undefined) updateData.name = name;
+        if (email !== undefined) updateData.email = email;
+        if (phone !== undefined) updateData.phone = phone;
+        if (address !== undefined) updateData.address = address;
+        if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
+
+        // Update employee document
+        await empRef.update(updateData);
+
+        // Get updated employee data
+        const updatedEmpDoc = await empRef.get();
+        const updatedEmployeeData = updatedEmpDoc.data();
+
+        res.json({
+            success: true,
+            message: "Profile updated successfully",
+            profile: {
+                employeeId: updatedEmployeeData.employeeId,
+                name: updatedEmployeeData.name,
+                email: updatedEmployeeData.email,
+                phone: updatedEmployeeData.phone || '',
+                role: updatedEmployeeData.role,
+                wage: updatedEmployeeData.wage || 0,
+                address: updatedEmployeeData.address || '',
+                photoUrl: updatedEmployeeData.photoUrl || `https://placehold.co/150x150/d4a770/ffffff?text=${updatedEmployeeData.name?.charAt(0) || 'E'}`,
+                updatedAt: updatedEmployeeData.updatedAt?.toDate() || new Date()
+            }
+        });
+
+    } catch (err) {
+        console.error("Update Employee Profile Error:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Server error" 
+        });
+    }
+});
+
 httpserver.listen(3000, () => {
     console.log(`Server is running on port 3000`);
 });
