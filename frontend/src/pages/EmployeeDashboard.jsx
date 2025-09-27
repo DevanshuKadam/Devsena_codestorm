@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { ClockIcon, CalendarDaysIcon, CheckCircleIcon, XCircleIcon, ChartBarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import Particles from '../components/ui/magic/Particles';
 import QRScanner from '../components/QRScanner';
-import { useEmployeeAuth } from '../contexts/EmployeeAuthContext';
 import apiService from '../services/api';
 import { Camera, LogOut, LogIn } from 'lucide-react';
 
@@ -82,7 +81,8 @@ const WorkingHoursChart = ({ hours }) => {
 
 
 export default function EmployeeDashboard() {
-  const { employee, isAuthenticated } = useEmployeeAuth();
+  const [employee, setEmployee] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [timeStatus, setTimeStatus] = useState({
     isPunchedIn: false,
     punchInTime: null,
@@ -92,17 +92,39 @@ export default function EmployeeDashboard() {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Check if employee is punched in today
+  // Check authentication and load employee data
   useEffect(() => {
-    if (isAuthenticated && employee) {
-      checkTodayPunchStatus();
+    const employeeData = localStorage.getItem('employeeData');
+    if (employeeData) {
+      try {
+        const parsedEmployeeData = JSON.parse(employeeData);
+        setEmployee(parsedEmployeeData);
+        setIsAuthenticated(true);
+        checkTodayPunchStatus(parsedEmployeeData);
+      } catch (error) {
+        console.error('Error parsing employee data:', error);
+        localStorage.removeItem('employeeData');
+        setIsAuthenticated(false);
+      }
+    } else {
+      setIsAuthenticated(false);
     }
-  }, [isAuthenticated, employee]);
+  }, []);
 
-  const checkTodayPunchStatus = async () => {
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('employeeData');
+    setEmployee(null);
+    setIsAuthenticated(false);
+    window.location.href = '/employee-login';
+  };
+
+  const checkTodayPunchStatus = async (employeeData = employee) => {
+    if (!employeeData) return;
+    
     try {
       const today = new Date().toISOString().split('T')[0];
-      const response = await apiService.getEmployeePunchRecords(employee.id, today, today, 10);
+      const response = await apiService.getEmployeePunchRecords(employeeData.employeeId, today, today, 10);
       
       if (response.success) {
         const todayRecords = response.punchRecords;
@@ -146,7 +168,7 @@ export default function EmployeeDashboard() {
 
       // Note: In a real app, you'd need to securely store and pass the password
       const mockPassword = 'czczpn74bpq'; // This should be handled properly in production
-      const response = await apiService.punchInScan(employee.id, mockPassword, qrToken);
+      const response = await apiService.punchInScan(employee.employeeId, mockPassword, qrToken);
       
       if (response.success) {
         setTimeStatus({
@@ -181,7 +203,7 @@ export default function EmployeeDashboard() {
 
       // Note: In a real app, you'd need to securely store and pass the password
       const mockPassword = 'temp_password'; // This should be handled properly in production
-      const response = await apiService.punchOut(employee.id, mockPassword);
+      const response = await apiService.punchOut(employee.employeeId, mockPassword);
       
       if (response.success) {
         setTimeStatus({
@@ -253,18 +275,31 @@ export default function EmployeeDashboard() {
           {/* Header Card with Glassmorphism */}
           <ShimmerCard className="mb-8 backdrop-blur-xl bg-white/70">
             <div className="p-8">
-              <div className="flex items-center gap-4">
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-700 shadow-lg">
-                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-700 shadow-lg">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                  <div>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent">
+                      Employee Dashboard
+                    </h1>
+                    <p className="text-gray-600 mt-1">
+                      Welcome back, {employee?.name || 'Employee'}! Here's your weekly overview
+                    </p>
                   </div>
-                <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent">
-                    Employee Dashboard
-                  </h1>
-                  <p className="text-gray-600 mt-1">Welcome back, Rahul! Here's your weekly overview</p>
                 </div>
+                
+                {/* Logout Button */}
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
               </div>
             </div>
           </ShimmerCard>
