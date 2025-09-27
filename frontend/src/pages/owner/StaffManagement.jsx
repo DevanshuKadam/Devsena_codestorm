@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 // Using Lucide Icons as they were in the original import
 import { Users, Plus, Edit2, Trash2, Mail, Phone, UserCheck, Calendar, Clock, X, TrendingUp, QrCode } from 'lucide-react';
 import OwnerNavbar from '../../components/OwnerNavbar';
@@ -19,11 +19,17 @@ const StaffManagement = () => {
     name: '',
     email: '',
     phone: '',
-    role: ''
+    role: '',
+    wagePerHour: ''
   });
 
   const roles = ['Cashier', 'Helper', 'Stock Manager', 'Sales Associate', 'Supervisor', 'Cleaner'];
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  // Stable onChange handlers to prevent re-renders
+  const handleInputChange = useCallback((field, value) => {
+    setNewStaff(prev => ({ ...prev, [field]: value }));
+  }, []);
 
   // Fetch employees and shop data
   useEffect(() => {
@@ -148,7 +154,7 @@ const StaffManagement = () => {
           email: newStaff.email,
           phone: newStaff.phone,
           role: newStaff.role,
-          wage: 0 // Default wage, can be updated later
+          wage: parseFloat(newStaff.wagePerHour) || 0
         }),
       });
 
@@ -167,7 +173,7 @@ const StaffManagement = () => {
           setStaff(employeesResult.employees);
         }
 
-        setNewStaff({ name: '', email: '', phone: '', role: '' });
+        setNewStaff({ name: '', email: '', phone: '', role: '', wagePerHour: '' });
         setShowAddModal(false);
         alert('Employee added successfully! Registration email sent.');
       } else {
@@ -422,14 +428,7 @@ const StaffManagement = () => {
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
               role="dialog"
               aria-modal="true"
-              // close if user clicks directly on the backdrop (not the form)
-              onMouseDown={(e) => {
-                if (e.target === e.currentTarget) setShowAddModal(false);
-              }}
-              // close on Escape for keyboard users
-              onKeyDown={(e) => {
-                if (e.key === "Escape") setShowAddModal(false);
-              }}
+            
               tabIndex={-1}
             >
               {/* dim layer */}
@@ -443,7 +442,7 @@ const StaffManagement = () => {
               >
                 <div
                   className="p-8 bg-white/95 backdrop-blur-sm"
-                  onMouseDown={(e) => e.stopPropagation()} // prevent backdrop handler
+                  // onMouseDown={(e) => e.stopPropagation()} // prevent backdrop handler
                 >
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-2xl font-semibold text-gray-900">Add New Staff</h3>
@@ -468,13 +467,9 @@ const StaffManagement = () => {
                         Full Name *
                       </label>
                       <input
-                        // keyboard users land here immediately
-                        autoFocus
                         type="text"
                         value={newStaff.name}
-                        onChange={(e) =>
-                          setNewStaff((prev) => ({ ...prev, name: e.target.value }))
-                        }
+                        onChange={(e) => handleInputChange('name', e.target.value)}
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white transition-shadow"
                         placeholder="Enter full name"
                         required
@@ -487,12 +482,9 @@ const StaffManagement = () => {
                         Email Address *
                       </label>
                       <input
-                        
                         type="email"
                         value={newStaff.email}
-                        onChange={(e) =>
-                          setNewStaff((prev) => ({ ...prev, email: e.target.value }))
-                        }
+                        onChange={(e) => handleInputChange('email', e.target.value)}
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white transition-shadow"
                         placeholder="employee@email.com"
                         required
@@ -506,11 +498,8 @@ const StaffManagement = () => {
                       </label>
                       <input
                         type="tel"
-                        inputMode="tel"
                         value={newStaff.phone}
-                        onChange={(e) =>
-                          setNewStaff((prev) => ({ ...prev, phone: e.target.value }))
-                        }
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white transition-shadow"
                         placeholder="+1 (555) 123-4567"
                         required
@@ -524,9 +513,7 @@ const StaffManagement = () => {
                       </label>
                       <select
                         value={newStaff.role}
-                        onChange={(e) =>
-                          setNewStaff((prev) => ({ ...prev, role: e.target.value }))
-                        }
+                        onChange={(e) => handleInputChange('role', e.target.value)}
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white transition-shadow"
                         required
                       >
@@ -537,6 +524,29 @@ const StaffManagement = () => {
                           </option>
                         ))}
                       </select>
+                    </div>
+
+                    {/* Wage per hour */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Wage per Hour *
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="text-gray-500 sm:text-sm">$</span>
+                        </div>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={newStaff.wagePerHour}
+                          onChange={(e) => handleInputChange('wagePerHour', e.target.value)}
+                          className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white transition-shadow"
+                          placeholder="15.00"
+                          required
+                        />
+                      </div>
+                      <p className="mt-1 text-sm text-gray-500">Enter the hourly wage for this employee</p>
                     </div>
 
                     <div className="bg-blue-50 p-4 rounded-xl">
