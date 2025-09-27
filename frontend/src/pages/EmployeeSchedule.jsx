@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import Particles from '../components/ui/magic/Particles'; 
 
@@ -31,10 +31,164 @@ const initialNextWeekAvailability = nextWeekDays.reduce((acc, day) => {
 
 // --- SCHEDULE VIEW COMPONENT ---
 const ScheduleView = ({ setView }) => {
-    const totalWeeklyHours = currentAvailability.reduce((sum, day) => sum + day.totalHours, 0);
+    const [scheduleData, setScheduleData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    // Calculate the start date of the current week (example: assuming the first entry is the start)
-    const weekStartDate = currentAvailability[0].currentWeek;
+    useEffect(() => {
+        fetchEmployeeSchedule();
+    }, []);
+
+    const fetchEmployeeSchedule = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // Get employee data from localStorage
+            const employeeData = localStorage.getItem('employeeData');
+            if (!employeeData) {
+                throw new Error('Employee data not found. Please log in again.');
+            }
+
+            const parsedEmployeeData = JSON.parse(employeeData);
+            const employeeId = parsedEmployeeData.employeeId || parsedEmployeeData.id;
+            const shopId = parsedEmployeeData.shopId;
+
+            if (!employeeId || !shopId) {
+                throw new Error('Employee ID or Shop ID not found. Please log in again.');
+            }
+
+            // Fetch schedule from API
+            const response = await fetch(
+                `http://localhost:3000/employee/schedule?shopId=${shopId}&employeeId=${employeeId}`
+            );
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to fetch schedule');
+            }
+
+            const data = await response.json();
+            setScheduleData(data);
+        } catch (err) {
+            console.error('Error fetching schedule:', err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Convert API schedule data to display format
+    const convertScheduleToDisplayFormat = (schedule) => {
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const displayData = [];
+
+        // Initialize all days
+        for (let i = 0; i < 7; i++) {
+            displayData.push({
+                day: dayNames[i],
+                currentWeek: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                slots: [],
+                totalHours: 0
+            });
+        }
+
+        // Fill in actual schedule data
+        if (schedule && Array.isArray(schedule)) {
+            schedule.forEach(shift => {
+                const dayIndex = shift.workday;
+                if (dayIndex >= 0 && dayIndex < 7) {
+                    const startTime = formatTime(shift.start);
+                    const endTime = formatTime(shift.end);
+                    const hours = calculateHours(shift.start, shift.end);
+                    
+                    displayData[dayIndex].slots.push({
+                        start: startTime,
+                        end: endTime,
+                        incentive: shift.incentive
+                    });
+                    displayData[dayIndex].totalHours += hours;
+                }
+            });
+        }
+
+        return displayData;
+    };
+
+    const formatTime = (time24) => {
+        if (!time24) return '';
+        const [hours, minutes] = time24.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour % 12 || 12;
+        return `${displayHour}:${minutes} ${ampm}`;
+    };
+
+    const calculateHours = (start, end) => {
+        if (!start || !end) return 0;
+        const startTime = new Date(`2000-01-01T${start}:00`);
+        const endTime = new Date(`2000-01-01T${end}:00`);
+        return (endTime - startTime) / (1000 * 60 * 60);
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+                <Navbar />
+                <Particles count={50} />
+                <div className="relative z-10 pt-20 p-6">
+                    <div className="max-w-7xl mx-auto">
+                        <ShimmerCard className="backdrop-blur-sm bg-white/80">
+                            <div className="p-8 text-center">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                <p className="text-gray-600">Loading your schedule...</p>
+                            </div>
+                        </ShimmerCard>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+                <Navbar />
+                <Particles count={50} />
+                <div className="relative z-10 pt-20 p-6">
+                    <div className="max-w-7xl mx-auto">
+                        <ShimmerCard className="backdrop-blur-sm bg-white/80">
+                            <div className="p-8 text-center">
+                                <div className="text-red-500 text-6xl mb-4">⚠️</div>
+                                <h3 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Schedule</h3>
+                                <p className="text-gray-600 mb-4">{error}</p>
+                                <button
+                                    onClick={fetchEmployeeSchedule}
+                                    className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition"
+                                >
+                                    Try Again
+                                </button>
+                            </div>
+                        </ShimmerCard>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    const displaySchedule = scheduleData ? convertScheduleToDisplayFormat(scheduleData.schedule) : [];
+    const totalWeeklyHours = scheduleData ? scheduleData.totalHours : 0;
+    const hasScheduleData = scheduleData && scheduleData.schedule && scheduleData.schedule.length > 0;
+    
+    // Calculate week start date (Sunday)
+    const today = new Date();
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - currentDay); // Go back to Sunday
+    const weekStartDate = startOfWeek.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+    });
     
     return (
         <>
@@ -50,9 +204,9 @@ const ScheduleView = ({ setView }) => {
                       </div>
                       <div>
                         <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent">
-                          Current Availability (Week of {weekStartDate})
+                          Current Schedule (Week of {weekStartDate})
                         </h2>
-                        <p className="text-gray-600 mt-1">Manage your weekly schedule</p>
+                        <p className="text-gray-600 mt-1">View your assigned shifts and manage availability</p>
                       </div>
                     </div>
                     <button 
@@ -76,16 +230,28 @@ const ScheduleView = ({ setView }) => {
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900">Weekly Summary</h3>
                 </div>
+                {hasScheduleData ? (
+                  <>
+                    <p className="text-xl font-semibold text-gray-800">
+                      Total Scheduled Hours this Week: <span className="text-blue-600 font-extrabold ml-1">{totalWeeklyHours}</span>
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">This is your current work schedule assigned by the shop owner.</p>
+                  </>
+                ) : (
+                  <>
                 <p className="text-xl font-semibold text-gray-800">
-                  Total Available Hours this Week: <span className="text-blue-600 font-extrabold ml-1">{totalWeeklyHours}</span>
+                      No schedule data available
                 </p>
-                <p className="text-sm text-gray-600 mt-1">This is the schedule you submitted last week, which the shop owner will use for rostering.</p>
+                    <p className="text-sm text-gray-600 mt-1">You haven't been assigned any shifts yet. Please set your availability below.</p>
+                  </>
+                )}
               </div>
             </ShimmerCard>
 
-            {/* Availability Grid */}
+            {/* Schedule Grid */}
+            {hasScheduleData ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-6">
-                {currentAvailability.map((day, index) => (
+                {displaySchedule.map((day, index) => (
                     <ShimmerCard key={index} className={`backdrop-blur-sm bg-white/80 ${day.slots.length > 0 ? "border-t-4 border-blue-400" : "border-t-4 border-gray-300"}`}>
                         <div className="p-5">
                           <h3 className="text-xl font-bold text-gray-900 flex justify-between items-center">
@@ -103,8 +269,13 @@ const ScheduleView = ({ setView }) => {
                             {day.slots.length > 0 ? (
                               day.slots.map((slot, slotIndex) => (
                                 <div key={slotIndex} className="bg-blue-50 rounded-lg p-3 text-sm border border-blue-200">
-                                  <p className="text-blue-800 font-semibold">Available</p>
+                                  <p className="text-blue-800 font-semibold">Scheduled Shift</p>
                                   <p className="text-blue-600 font-mono">{slot.start} - {slot.end}</p>
+                                  {slot.incentive && (
+                                    <p className="text-green-600 text-xs mt-1 font-medium">
+                                      💰 {slot.incentive}
+                                    </p>
+                                  )}
                                 </div>
                               ))
                             ) : (
@@ -118,12 +289,22 @@ const ScheduleView = ({ setView }) => {
                       </ShimmerCard>
                 ))}
             </div>
+            ) : (
+              <ShimmerCard className="backdrop-blur-sm bg-white/80">
+                <div className="p-8 text-center">
+                  <div className="text-6xl mb-4">📅</div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No Schedule Assigned</h3>
+                  <p className="text-gray-600 mb-4">You haven't been assigned any shifts yet. Set your availability below to help the shop owner create your schedule.</p>
+                </div>
+              </ShimmerCard>
+            )}
         </>
     );
 };
 
 // --- SET AVAILABILITY FORM COMPONENT ---
 const SetAvailabilityForm = ({ nextWeekData, setNextWeekData, setView }) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
     
     const handleChange = (day, field, value) => {
         setNextWeekData(prevData => ({
@@ -148,14 +329,108 @@ const SetAvailabilityForm = ({ nextWeekData, setNextWeekData, setView }) => {
         }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // In a real application, you would send nextWeekData to the AI scheduling service here.
-        console.log("Submitting Next Week Availability:", nextWeekData);
+        setIsSubmitting(true);
         
-        // After successful submission, switch back to the main view
+        try {
+            // Get employee ID from localStorage
+            const employeeData = localStorage.getItem('employeeData');
+            if (!employeeData) {
+                alert("Employee data not found. Please log in again.");
+                setIsSubmitting(false);
+                return;
+            }
+            
+            const parsedEmployeeData = JSON.parse(employeeData);
+            const employeeId = parsedEmployeeData.employeeId || parsedEmployeeData.id;
+            
+            if (!employeeId) {
+                alert("Employee ID not found. Please log in again.");
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Map form data to the required structure
+            const availabilities = [];
+            const dayMapping = {
+                "Monday": 1,
+                "Tuesday": 2, 
+                "Wednesday": 3,
+                "Thursday": 4,
+                "Friday": 5,
+                "Saturday": 6,
+                "Sunday": 0
+            };
+
+            // Calculate next week's dates (starting from next Monday)
+            const today = new Date();
+            const nextMonday = new Date(today);
+            nextMonday.setDate(today.getDate() + (1 + 7 - today.getDay()) % 7); // Next Monday
+            
+            // Process each day in the form
+            nextWeekDays.forEach(day => {
+                const dayData = nextWeekData[day];
+                const weekday = dayMapping[day];
+                
+                // Calculate the date for this weekday
+                const dayDate = new Date(nextMonday);
+                dayDate.setDate(nextMonday.getDate() + (weekday === 0 ? 6 : weekday - 1)); // Adjust for Sunday = 0
+                
+                const availability = {
+                    weekday: weekday,
+                    start: dayData.isAvailable ? dayData.start : "00:00",
+                    end: dayData.isAvailable ? dayData.end : "00:00", 
+                    isDayOff: !dayData.isAvailable,
+                    date: dayDate.toISOString().split('T')[0] // Format as YYYY-MM-DD
+                };
+                
+                availabilities.push(availability);
+            });
+
+            // Add Sunday (day 0) if not in nextWeekDays
+            if (!nextWeekDays.includes("Sunday")) {
+                const sundayDate = new Date(nextMonday);
+                sundayDate.setDate(nextMonday.getDate() + 6); // Sunday is 6 days after Monday
+                
+                availabilities.push({
+                    weekday: 0,
+                    start: "00:00",
+                    end: "00:00",
+                    isDayOff: true,
+                    date: sundayDate.toISOString().split('T')[0]
+                });
+            }
+
+            // Sort by weekday
+            availabilities.sort((a, b) => a.weekday - b.weekday);
+
+            console.log("Mapped availability data:", availabilities);
+
+            // Send POST request to the backend
+            const response = await fetch(`http://localhost:3000/employee/${employeeId}/availability`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ availabilities })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
         setView('view'); 
-        alert("Availability submitted! The AI scheduler will now draft your shifts.");
+            } else {
+                const error = await response.json();
+                console.error("Error submitting availability:", error);
+                alert("Failed to submit availability. Please try again.");
+            }
+
+        } catch (error) {
+            console.error("Error submitting availability:", error);
+            alert("An error occurred while submitting availability. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -232,9 +507,24 @@ const SetAvailabilityForm = ({ nextWeekData, setNextWeekData, setView }) => {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                    disabled={isSubmitting}
+                    className={`px-6 py-2 font-bold rounded-full shadow-lg transition-all duration-200 flex items-center gap-2 ${
+                      isSubmitting 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:shadow-xl transform hover:-translate-y-0.5'
+                    }`}
                   >
-                    Submit Availability
+                    {isSubmitting ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit Availability'
+                    )}
                   </button>
                 </div>
               </form>

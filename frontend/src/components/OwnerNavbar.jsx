@@ -10,7 +10,7 @@ const OwnerNavbar = () => {
     { name: "Staff", path: "/admin/staff-management" },
     { name: "Schedule", path: "/admin/schedule-dashboard" },
     // NEW: Payroll Link Added
-    { name: "Payroll", path: "/admin/payroll" }, 
+  { name: "Payroll", path: "/admin/payroll" },
     // { name: "Profile", path: "/admin/business-profile" }, // Profile link is now handled by the user icon on the right
   ];
 
