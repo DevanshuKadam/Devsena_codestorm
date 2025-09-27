@@ -1,24 +1,12 @@
 import Navbar from "../components/Navbar";
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ClockIcon, CalendarDaysIcon, CheckCircleIcon, XCircleIcon, ChartBarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import Particles from '../components/ui/magic/Particles';
 import QRScanner from '../components/QRScanner';
 import apiService from '../services/api';
-import { Camera, LogOut, LogIn } from 'lucide-react';
+import { Camera, LogOut } from 'lucide-react';
 
-// This is a dummy data array to simulate fetching an employee's weekly schedule.
-const weeklySchedule = [
-  { day: "Monday", date: "Oct 27", shifts: [] },
-  { day: "Tuesday", date: "Oct 28", shifts: [{ role: "Barista", start: "10:00 AM", end: "2:00 PM" }] },
-  { day: "Wednesday", date: "Oct 29", shifts: [{ role: "Cashier", start: "11:00 AM", end: "3:00 PM" }] },
-  { day: "Thursday", date: "Oct 30", shifts: [{ role: "Barista", start: "1:00 PM", end: "5:00 PM" }] },
-  { day: "Friday", date: "Oct 31", shifts: [] },
-  { day: "Saturday", date: "Nov 1", shifts: [{ role: "Barista", start: "9:00 AM", end: "1:00 PM" }, { role: "Cashier", start: "2:00 PM", end: "6:00 PM" }] },
-  { day: "Sunday", date: "Nov 2", shifts: [] },
-];
-
-const mockDailyHours = [2, 4, 3, 5, 0, 8, 0]; // Simulated hours for the chart
-const totalShifts = weeklySchedule.reduce((count, day) => count + day.shifts.length, 0);
+// Dynamic data will be fetched from API
 
 // Magic UI Shimmer Card Component
 const ShimmerCard = ({ children, className = "" }) => (
@@ -91,6 +79,44 @@ export default function EmployeeDashboard() {
   const [showScanner, setShowScanner] = useState(false);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Dashboard data state
+  const [dashboardData, setDashboardData] = useState({
+    weeklySchedule: [],
+    totalShifts: 0,
+    totalHours: '0',
+    dailyHours: [0, 0, 0, 0, 0, 0, 0],
+    upcomingShifts: [],
+    metrics: {
+      totalShifts: 0,
+      totalHours: '0',
+      acknowledgedShifts: 0,
+      daysOff: 0
+    }
+  });
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
+
+  // Fetch dashboard data
+  const fetchDashboardData = async (employeeData) => {
+    if (!employeeData?.employeeId) return;
+    
+    try {
+      setIsLoadingDashboard(true);
+      const response = await apiService.getEmployeeDashboard(employeeData.employeeId);
+      
+      if (response.success) {
+        setDashboardData(response.dashboard);
+        // Update time status from dashboard data
+        setTimeStatus(response.dashboard.currentStatus);
+      } else {
+        console.error('Failed to fetch dashboard data:', response.message);
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setIsLoadingDashboard(false);
+    }
+  };
 
   // Check authentication and load employee data
   useEffect(() => {
@@ -101,6 +127,7 @@ export default function EmployeeDashboard() {
         setEmployee(parsedEmployeeData);
         setIsAuthenticated(true);
         checkTodayPunchStatus(parsedEmployeeData);
+        fetchDashboardData(parsedEmployeeData);
       } catch (error) {
         console.error('Error parsing employee data:', error);
         localStorage.removeItem('employeeData');
@@ -180,6 +207,8 @@ export default function EmployeeDashboard() {
           currentShiftHours: 0.0,
         });
         setMessage(`✅ Successfully PUNCHED IN at ${new Date(response.punchRecord.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
+        // Refresh dashboard data
+        fetchDashboardData(employee);
       } else {
         setMessage(`❌ Punch in failed: ${response.message}`);
       }
@@ -212,6 +241,8 @@ export default function EmployeeDashboard() {
           currentShiftHours: parseFloat(response.punchRecord.workHours || 0),
         });
         setMessage(`👋 Successfully PUNCHED OUT. Shift length: ${response.punchRecord.workHours} hours.`);
+        // Refresh dashboard data
+        fetchDashboardData(employee);
       } else {
         setMessage(`❌ Punch out failed: ${response.message}`);
       }
@@ -231,36 +262,12 @@ export default function EmployeeDashboard() {
     }
   };
 
-  // Calculate total hours for the week
-  const totalHours = weeklySchedule.reduce((total, day) => {
-    const dayHours = day.shifts.reduce((sum, shift) => {
-      const parseTime = (time) => {
-          let [timePart, modifier] = time.split(" ");
-          let [hour, minute = 0] = timePart.split(":");
-          hour = parseInt(hour);
-
-          if (modifier === 'PM' && hour !== 12) hour += 12;
-          if (modifier === 'AM' && hour === 12) hour = 0;
-          
-          return hour + minute / 60; 
-      };
-      
-      const startDecimal = parseTime(shift.start);
-      const endDecimal = parseTime(shift.end);
-
-      return sum + (endDecimal - startDecimal);
-    }, 0);
-    return total + dayHours;
-  }, 0);
+  // Use dynamic data from API
+  const { weeklySchedule, totalShifts, totalHours, dailyHours, upcomingShifts, metrics } = dashboardData;
 
   // General Card Styling for the Bright Background
   const cardStyle = "bg-white rounded-xl shadow-lg transition duration-300 hover:shadow-xl border border-twine-100";
   const metricStyle = "bg-white p-4 rounded-xl shadow-md border border-twine-100 flex flex-col justify-center items-center h-28";
-  
-  // Get upcoming shifts, filtered to show the next 5
-  const upcomingShifts = weeklySchedule
-    .flatMap(day => day.shifts.map(shift => ({ ...shift, day: day.day, date: day.date })))
-    .filter((_, i) => i < 5);
 
 
   return (
@@ -312,21 +319,17 @@ export default function EmployeeDashboard() {
               <div className="p-6 md:p-8 flex flex-col justify-between h-full">
                 <div>
                   <h3 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-4">
-                    Hi, Rahul!
+                    Hi, {employee?.name || 'Employee'}!
                   </h3>
                   <p className="text-lg text-gray-700">
-                    You have <span className="font-bold text-blue-600">{totalShifts} shifts</span> to complete this week. Let's make it a productive one!
+                    {isLoadingDashboard ? (
+                      <span className="animate-pulse">Loading your schedule...</span>
+                    ) : (
+                      <>You have <span className="font-bold text-blue-600">{totalShifts} shifts</span> to complete this week. Let's make it a productive one!</>
+                    )}
                   </p>
                 </div>
 
-                {/* Weekly Goal Card */}
-                <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-md font-semibold text-blue-700 mb-2">Weekly Goal Progress</p>
-                  <div className="w-full bg-blue-200 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full" style={{ width: '75%' }}></div>
-                  </div>
-                  <p className="text-sm text-blue-600 mt-2">75% Acknowledged</p>
-                </div>
 
                 {/* Punch In/Out Button */}
                 <button
@@ -377,25 +380,25 @@ export default function EmployeeDashboard() {
               {/* Top Metrics Grid (4 Cards) */}
               <div className="grid grid-cols-2 gap-4">
                 <AnimatedCounter 
-                  value={`${totalHours.toFixed(0)}h`} 
+                  value={isLoadingDashboard ? "..." : `${totalHours}h`} 
                   label="Total Hours" 
                   icon={ClockIcon} 
                   gradient="from-blue-500 to-blue-700" 
                 />
                 <AnimatedCounter 
-                  value={totalShifts} 
+                  value={isLoadingDashboard ? "..." : totalShifts} 
                   label="Total Shifts" 
                   icon={CalendarDaysIcon} 
                   gradient="from-indigo-500 to-indigo-700" 
                 />
                 <AnimatedCounter 
-                  value={Math.round(totalShifts * 0.75)} 
+                  value={isLoadingDashboard ? "..." : metrics.acknowledgedShifts} 
                   label="Acknowledged" 
                   icon={CheckCircleIcon} 
                   gradient="from-green-500 to-green-700" 
                 />
                 <AnimatedCounter 
-                  value={weeklySchedule.filter(d => d.shifts.length === 0).length} 
+                  value={isLoadingDashboard ? "..." : metrics.daysOff} 
                   label="Days Off" 
                   icon={XCircleIcon} 
                   gradient="from-purple-500 to-purple-700" 
@@ -404,7 +407,7 @@ export default function EmployeeDashboard() {
 
               {/* Working Hours Chart */}
               <ShimmerCard className="h-64 backdrop-blur-sm bg-white/80">
-                <WorkingHoursChart hours={mockDailyHours} />
+                <WorkingHoursChart hours={isLoadingDashboard ? [0, 0, 0, 0, 0, 0, 0] : dailyHours} />
               </ShimmerCard>
             </div>
           
@@ -419,26 +422,39 @@ export default function EmployeeDashboard() {
                 </h4>
                 
                 <div className="space-y-4 flex-1">
-                  {upcomingShifts.map((shift, index) => (
-                    <div 
-                      key={index} 
-                      className="p-4 bg-blue-50/70 rounded-lg border border-blue-200 shadow-sm flex justify-between items-center hover:bg-blue-100 transition cursor-pointer"
-                    >
-                      <div>
-                        <p className="text-lg font-semibold text-gray-900">{shift.role}</p>
-                        <p className="text-sm text-gray-600">{shift.day}, {shift.date}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-md font-bold text-blue-700">{shift.start} - {shift.end}</p>
-                      </div>
+                  {isLoadingDashboard ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="p-4 bg-gray-100 rounded-lg animate-pulse">
+                          <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
+                          <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  ) : (
+                    <>
+                      {upcomingShifts.map((shift, index) => (
+                        <div 
+                          key={index} 
+                          className="p-4 bg-blue-50/70 rounded-lg border border-blue-200 shadow-sm flex justify-between items-center hover:bg-blue-100 transition cursor-pointer"
+                        >
+                          <div>
+                            <p className="text-lg font-semibold text-gray-900">{shift.role}</p>
+                            <p className="text-sm text-gray-600">{shift.day}, {shift.date}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-md font-bold text-blue-700">{shift.start} - {shift.end}</p>
+                          </div>
+                        </div>
+                      ))}
 
-                  {totalShifts === 0 && (
-                    <div className="text-center p-8 text-gray-500 bg-blue-50 rounded-lg">
-                      <p className="text-3xl mb-2">😴</p>
-                      <p>No shifts scheduled this week.</p>
-                    </div>
+                      {totalShifts === 0 && (
+                        <div className="text-center p-8 text-gray-500 bg-blue-50 rounded-lg">
+                          <p className="text-3xl mb-2">😴</p>
+                          <p>No shifts scheduled this week.</p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

@@ -1,20 +1,20 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
-import { CakeIcon, BriefcaseIcon, MapPinIcon, DevicePhoneMobileIcon, EnvelopeIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
+import { BriefcaseIcon, DevicePhoneMobileIcon, EnvelopeIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import Particles from '../components/ui/magic/Particles';
+import apiService from '../services/api';
 
-// --- DUMMY DATA FOR EMPLOYEE PROFILE ---
+// --- INITIAL PROFILE STATE ---
 const initialProfile = {
-  photoUrl: "https://placehold.co/150x150/d4a770/ffffff?text=JP", // Placeholder for John Peters
-  name: "John K. Peters",
-  email: "john.peters@localbrew.com",
-  phone: "(555) 123-4567",
-  employeeId: "TWINE-0042",
-  companyName: "The Local Brew & Co.",
-  role: "Lead Barista / Cashier",
-  age: 28,
-  joinDate: "August 15, 2023",
-  address: "123 Main St, Anytown, USA",
+  photoUrl: "https://placehold.co/150x150/d4a770/ffffff?text=E",
+  name: "",
+  email: "",
+  phone: "",
+  employeeId: "",
+  companyName: "",
+  role: "",
+  joinDate: "",
+  address: "",
 };
 
 // Magic UI Shimmer Card Component
@@ -29,13 +29,94 @@ const ShimmerCard = ({ children, className = "" }) => (
 export default function Profile() {
   const [profileData, setProfileData] = useState(initialProfile);
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch employee profile data
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        setIsLoading(true);
+        setError('');
+
+        // Get employee data from localStorage
+        const employeeData = localStorage.getItem('employeeData');
+        if (!employeeData) {
+          throw new Error('No employee authentication data found');
+        }
+
+        const employee = JSON.parse(employeeData);
+        if (!employee.employeeId) {
+          throw new Error('No employee ID found in authentication data');
+        }
+
+        console.log('Profile: Fetching profile data for employee:', employee.employeeId);
+
+        // Fetch profile data from API
+        const response = await apiService.getEmployeeProfile(employee.employeeId);
+        
+        if (!response.success) {
+          throw new Error(response.message || 'Failed to fetch profile data');
+        }
+
+        console.log('Profile: Profile data received:', response.profile);
+        setProfileData(response.profile);
+
+      } catch (error) {
+        console.error('Profile: Error fetching data:', error);
+        setError(error.message || 'Failed to load profile data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfileData();
+  }, []);
 
   // Helper function to handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // In a real application, you would send profileData to a backend service here
-    console.log("Saving Profile Data:", profileData);
-    setIsEditing(false);
+    
+    try {
+      setIsSaving(true);
+      setError('');
+
+      // Get employee data from localStorage
+      const employeeData = localStorage.getItem('employeeData');
+      if (!employeeData) {
+        throw new Error('No employee authentication data found');
+      }
+
+      const employee = JSON.parse(employeeData);
+      
+      // Prepare update data (only editable fields)
+      const updateData = {
+        name: profileData.name,
+        email: profileData.email,
+        phone: profileData.phone,
+        photoUrl: profileData.photoUrl
+      };
+
+      console.log('Profile: Updating profile data:', updateData);
+
+      // Update profile via API
+      const response = await apiService.updateEmployeeProfile(employee.employeeId, updateData);
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to update profile');
+      }
+
+      console.log('Profile: Profile updated successfully:', response.profile);
+      setProfileData(response.profile);
+      setIsEditing(false);
+
+    } catch (error) {
+      console.error('Profile: Error updating profile:', error);
+      setError(error.message || 'Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Helper function to handle input changes
@@ -64,6 +145,53 @@ export default function Profile() {
       </div>
     </div>
   );
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+        <Navbar />
+        <Particles count={50} />
+        <div className="relative z-10 pt-24 p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading profile data...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+        <Navbar />
+        <Particles count={50} />
+        <div className="relative z-10 pt-24 p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <div className="text-red-500 text-6xl mb-4">⚠️</div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Profile</h2>
+                <p className="text-gray-600 mb-4">{error}</p>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
@@ -130,9 +258,9 @@ export default function Profile() {
                   <h3 className="text-3xl font-extrabold text-gray-900">{profileData.name}</h3>
                   <p className="text-lg text-blue-600 font-semibold mb-4">{profileData.role}</p>
                   
-                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                    <p className="text-xs font-mono text-blue-700">Employee ID</p>
-                    <p className="text-xl font-bold text-blue-800">{profileData.employeeId}</p>
+                  <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                    <p className="text-xs font-mono text-green-700">Join Date</p>
+                    <p className="text-lg font-bold text-green-800">{profileData.joinDate}</p>
                   </div>
                 </div>
 
@@ -143,15 +271,11 @@ export default function Profile() {
                     {/* Fixed Company/Role Details (Read-Only) */}
                     <ProfileField icon={BriefcaseIcon} label="Company" value={profileData.companyName} name="companyName" editable={false} />
                     <ProfileField icon={BriefcaseIcon} label="Primary Role" value={profileData.role} name="role" editable={false} />
-                    <ProfileField icon={CakeIcon} label="Age" value={`${profileData.age} years old`} name="age" editable={false} />
-                    <ProfileField icon={CakeIcon} label="Joined Date" value={profileData.joinDate} name="joinDate" editable={false} />
+                    <ProfileField icon={BriefcaseIcon} label="Joined Date" value={profileData.joinDate} name="joinDate" editable={false} />
 
                     {/* Editable Contact Information */}
                     <ProfileField icon={EnvelopeIcon} label="Email Address" value={profileData.email} name="email" type="email" />
                     <ProfileField icon={DevicePhoneMobileIcon} label="Phone Number" value={profileData.phone} name="phone" />
-                    <div className="sm:col-span-2">
-                        <ProfileField icon={MapPinIcon} label="Address" value={profileData.address} name="address" />
-                    </div>
                   </div>
 
                   {/* Save Button (only visible in editing mode) */}
@@ -159,10 +283,36 @@ export default function Profile() {
                     <div className="pt-6 border-t border-gray-200 flex justify-end">
                       <button
                         type="submit"
-                        className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-3 font-bold rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                        disabled={isSaving}
+                        className={`px-8 py-3 font-bold rounded-full shadow-lg transform transition-all duration-200 ${
+                          isSaving 
+                            ? 'bg-gray-400 text-white cursor-not-allowed' 
+                            : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:shadow-xl hover:-translate-y-0.5'
+                        }`}
                       >
-                        Save Changes
+                        {isSaving ? 'Saving...' : 'Save Changes'}
                       </button>
+                    </div>
+                  )}
+
+                  {/* Error Message */}
+                  {error && (
+                    <div className="pt-4">
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div className="flex">
+                          <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="ml-3">
+                            <h3 className="text-sm font-medium text-red-800">Error</h3>
+                            <div className="mt-2 text-sm text-red-700">
+                              <p>{error}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -172,7 +322,7 @@ export default function Profile() {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }

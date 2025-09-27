@@ -120,6 +120,24 @@ class ApiService {
   async getAuthStatus() {
     return this.request('/auth/status');
   }
+
+  // Employee Dashboard Data
+  async getEmployeeDashboard(employeeId) {
+    return this.request(`/employee/${employeeId}/dashboard`);
+  }
+
+  // Employee Profile Data
+  async getEmployeeProfile(employeeId) {
+    return this.request(`/employee/${employeeId}/profile`);
+  }
+
+  // Update Employee Profile
+  async updateEmployeeProfile(employeeId, profileData) {
+    return this.request(`/employee/${employeeId}/profile`, {
+      method: 'PATCH',
+      body: JSON.stringify(profileData)
+    });
+  }
 }
 
 // Create and export a singleton instance

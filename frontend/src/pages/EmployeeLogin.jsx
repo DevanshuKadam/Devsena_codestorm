@@ -52,6 +52,8 @@ const EmployeeLogin = () => {
         console.log('Employee login successful:', result.employee);
         
         // Store employee data in localStorage
+        localStorage.removeItem('employeeData');
+        localStorage.removeItem('ownerData');
         localStorage.setItem('employeeData', JSON.stringify(result.employee));
         
         // Navigate to employee dashboard
