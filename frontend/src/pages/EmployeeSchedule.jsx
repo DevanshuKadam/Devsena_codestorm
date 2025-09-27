@@ -250,7 +250,7 @@ const ScheduleView = ({ setView }) => {
 
             {/* Schedule Grid */}
             {hasScheduleData ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-6">
                 {displaySchedule.map((day, index) => (
                     <ShimmerCard key={index} className={`backdrop-blur-sm bg-white/80 ${day.slots.length > 0 ? "border-t-4 border-blue-400" : "border-t-4 border-gray-300"}`}>
                         <div className="p-5">
@@ -288,7 +288,7 @@ const ScheduleView = ({ setView }) => {
                         </div>
                       </ShimmerCard>
                 ))}
-              </div>
+            </div>
             ) : (
               <ShimmerCard className="backdrop-blur-sm bg-white/80">
                 <div className="p-8 text-center">

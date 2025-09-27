@@ -126,11 +126,9 @@ const Onboarding = () => {
           window.history.replaceState({}, document.title, window.location.pathname);
         } else {
           console.error('Onboarding: Authentication failed:', data.message);
-          setError('Authentication failed. Please try again.');
         }
       } catch (error) {
         console.error('Onboarding: Error during OAuth callback:', error);
-        setError('Authentication failed. Please try again.');
       } finally {
         setIsAuthLoading(false);
       }
