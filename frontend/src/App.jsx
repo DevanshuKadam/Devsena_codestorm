@@ -27,6 +27,7 @@ import EmployeeProtectedRoute from './components/EmployeeProtectedRoute';
 import Home from './pages/Home';
 import { ChatProvider } from './contexts/ChatContext';
 import GlobalChat from './components/GlobalChat';
+import OwnerPayroll from './pages/owner/OwnerPayroll';
 
 function App() {
   return (
@@ -66,6 +67,7 @@ function App() {
             <Route path="/admin/staff-management" element={<ProtectedRoute><StaffManagement /></ProtectedRoute>} />
             <Route path="/admin/schedule-dashboard" element={<ProtectedRoute><ScheduleDashboard /></ProtectedRoute>} />
             <Route path="/admin/business-profile" element={<ProtectedRoute><BusinessProfile /></ProtectedRoute>} />
+            <Route path="/admin/payroll" element={<ProtectedRoute><OwnerPayroll /></ProtectedRoute>} />
 
           </Routes>
         </div>
