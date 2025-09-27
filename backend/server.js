@@ -10,7 +10,7 @@ import puppeteer from "puppeteer";
 import QRCode from "qrcode";
 import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
-import { AImodel } from "./geminiAi.js";
+import { AImodel, conversationmodel } from "./geminiAi.js";
 
 dotenv.config();
 
@@ -161,7 +161,7 @@ io.on('connection', async (socket) => {
 Your primary functions are:
 1. Help schedule and manage employee tasks and shifts
 2. Provide updates on business operations, schedules, and employee status
-3. Navigate between different pages of the business management system
+3. Navigate between your admin pages (admin dashboard, staff management, schedule dashboard, business profile)
 4. Analyze schedules and provide optimization suggestions
 5. Help with employee management and task assignment
 6. Provide business insights based on current data
@@ -179,7 +179,7 @@ Your primary functions are:
 1. Help employees check their work schedule and shifts
 2. Provide information about assigned tasks and responsibilities
 3. Help with time management and work planning
-4. Navigate between different pages of the employee dashboard
+4. Navigate between your employee pages (employee dashboard, schedule, payroll, profile, training)
 5. Provide updates on schedule changes or new assignments
 6. Assist with work-related queries and concerns
 
@@ -231,7 +231,19 @@ When users ask to save a schedule, respond with:
 
 After emitting the save command, respond with only: "Schedule saved successfully!"
 
-When the user asks to navigate to a page, respond with exactly: open pagename. Available pages are dashboard, schedule, employees, tasks, analytics, settings. Do not add any other text or explanation when responding to navigation requests.
+NAVIGATION COMMANDS:
+When the user asks to navigate to a page, respond with exactly: open pagename. 
+
+Available pages for your role: ${socket.user_role === 'owner' ? 'admin, admindashboard, adminonboarding, adminstaffmanagement, adminscheduledashboard, adminbusinessprofile' : socket.user_role === 'employee' ? 'employeedashboard, employeeschedule, employeepayroll, employeeprofile, employeetraining' : 'home'}
+
+Common navigation requests:
+${socket.user_role === 'owner' ? 
+  '- "dashboard" → "open admindashboard"\n- "staff" → "open adminstaffmanagement"\n- "schedule" → "open adminscheduledashboard"\n- "business" → "open adminbusinessprofile"' : 
+  socket.user_role === 'employee' ? 
+  '- "dashboard" → "open employeedashboard"\n- "schedule" → "open employeeschedule"\n- "payroll" → "open employeepayroll"\n- "profile" → "open employeeprofile"\n- "training" → "open employeetraining"' : 
+  '- "home" → "open home'}
+
+Do not add any other text or explanation when responding to navigation requests.
 
 Always provide practical, actionable advice based on the actual business data provided. Be specific and reference the actual shops, employees, and schedules when making recommendations. Keep responses helpful, engaging, and focused on business management and optimization.
 
@@ -244,16 +256,16 @@ Always provide practical, actionable advice based on the actual business data pr
         parts: [
             { 
                 text: socket.user_role === 'owner' 
-                    ? "Hello! I'm your Personal Business Assistant. I have access to your business data including your shops, employees, and schedules. How can I help you manage your business today? I can assist with scheduling, employee management, task assignment, or navigate you to different sections of your business dashboard."
+                    ? "Hello! I'm your Personal Business Assistant. I have access to your business data including your shops, employees, and schedules. How can I help you manage your business today? I can assist with scheduling, employee management, task assignment, or navigate you to your admin dashboard, staff management, schedule dashboard, or business profile."
                     : socket.user_role === 'employee'
-                    ? `Hello! I'm your Personal Assistant. I'm here to help you with your work-related tasks and schedule. How can I assist you today? I can help you check your schedule, view your tasks, or navigate to different sections of your employee dashboard.`
+                    ? `Hello! I'm your Personal Assistant. I'm here to help you with your work-related tasks and schedule. How can I assist you today? I can help you check your schedule, view your tasks, or navigate to your employee dashboard, schedule, payroll, profile, or training sections.`
                     : "Hello! I'm your assistant. How can I help you today?"
             },
         ],
     },]
 
 
-        const chatSession = AImodel.startChat({
+        const chatSession = conversationmodel.startChat({
 
             // safetySettings: Adjust safety settings
             // See https://ai.google.dev/gemini-api/docs/safety-settings

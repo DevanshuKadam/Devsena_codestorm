@@ -23,6 +23,19 @@ export default function GlobalChat() {
   const videoRef = useRef(null);
   const initialtext = "Hello! I'm your Personal Business Assistant. I can help you manage your business operations, create schedules, assign tasks, and navigate your dashboard. How may I assist you today?";
   
+  // Define auth routes where chatbot should be hidden
+  const authRoutes = [
+    '/',
+    '/admin/auth',
+    '/auth/callback',
+    '/auth/callback-simple', 
+    '/auth/success',
+    '/auth/error'
+  ];
+  
+  // Check if current route is an auth route
+  const isAuthRoute = authRoutes.includes(location.pathname);
+  
   // Use chat context
   const {
     chatVisibility,
@@ -90,7 +103,7 @@ export default function GlobalChat() {
     const getUserData = () => {
       try {
         const ownerData = localStorage.getItem('ownerData');
-        const employeeId = localStorage.getItem('employeeId');
+        const employeeData = localStorage.getItem('employeeData');
         
         if (ownerData) {
           const parsedOwnerData = JSON.parse(ownerData);
@@ -98,9 +111,11 @@ export default function GlobalChat() {
             id: parsedOwnerData.googleId || parsedOwnerData.id || null,
             role: "owner"
           };
-        } else if (employeeId) {
+        } else if (employeeData) {
+          const parsedEmployeeData = JSON.parse(employeeData);
+          
           return {
-            id: employeeId,
+            id: parsedEmployeeData.employeeId || parsedEmployeeData.id || null,
             role: "employee"
           };
         }
@@ -249,24 +264,39 @@ export default function GlobalChat() {
 
         console.log(pagename);
 
-        // Define a mapping of possible variations to correct routes
+        // Define a comprehensive mapping of all routes in the app (excluding auth routes)
         const pageRoutes = {
-          home: "/",
-          homepage: "/",
-          dashboard: "/owner/dashboard",
-          ownerdashboard: "/owner/dashboard",
-          businessprofile: "/owner/business-profile",
-          business: "/owner/business-profile",
-          staffmanagement: "/owner/staff-management",
-          staff: "/owner/staff-management",
-          scheduledashboard: "/owner/schedule-dashboard",
-          ownerschedule: "/owner/schedule-dashboard",
+          // Home and main pages
+        
+          
+          // Employee routes
           employeedashboard: "/employee/dashboard",
           employeeschedule: "/employee/schedule",
-          profile: "/profile",
-          profilepage: "/profile",
-          payroll: "/payroll",
-          training: "/training"
+          employeepayroll: "/employee/payroll",
+          employeeprofile: "/employee/profile",
+          employeetraining: "/employee/training",
+          
+          // Legacy employee routes (redirects)
+          dashboard: "/employee/dashboard",
+          schedule: "/employee/schedule", 
+          payroll: "/employee/payroll",
+          profile: "/employee/profile",
+          training: "/employee/training",
+          
+          // Owner/Admin routes
+          admin: "/admin",
+          admindashboard: "/admin/dashboard",
+          adminonboarding: "/admin/onboarding",
+          onboarding: "/admin/onboarding",
+          adminstaffmanagement: "/admin/staff-management",
+          staffmanagement: "/admin/staff-management",
+          staff: "/admin/staff-management",
+          adminscheduledashboard: "/admin/schedule-dashboard",
+          scheduledashboard: "/admin/schedule-dashboard",
+          ownerschedule: "/admin/schedule-dashboard",
+          adminbusinessprofile: "/admin/business-profile",
+          businessprofile: "/admin/business-profile",
+          business: "/admin/business-profile"
         };
         
 
@@ -354,6 +384,11 @@ export default function GlobalChat() {
       }
     }
   };
+
+  // Don't render chatbot on auth routes
+  if (isAuthRoute) {
+    return null;
+  }
 
   return (
     <>

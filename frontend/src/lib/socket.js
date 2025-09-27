@@ -6,7 +6,7 @@ const socket = io("http://localhost:3000", { autoConnect: false })
 const getUserData = () => {
     try {
         const ownerData = localStorage.getItem('ownerData');
-        const employeeId = localStorage.getItem('employeeId');
+        const employeeData = localStorage.getItem('employeeData');
         
         if (ownerData) {
             const parsedOwnerData = JSON.parse(ownerData);
@@ -14,9 +14,11 @@ const getUserData = () => {
                 id: parsedOwnerData.googleId || parsedOwnerData.id || null,
                 role: "owner"
             };
-        } else if (employeeId) {
+        } else if (employeeData) {
+            const parsedEmployeeData = JSON.parse(employeeData);
+
             return {
-                id: employeeId,
+                id: parsedEmployeeData.employeeId || parsedEmployeeData.id || null,
                 role: "employee"
             };
         }
