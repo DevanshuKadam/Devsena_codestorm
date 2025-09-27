@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Plus, X, Clock, MapPin, Phone, Building2, Users, Calendar } from 'lucide-react';
 import OwnerNavbar from '../../components/OwnerNavbar';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const Onboarding = () => {
   const [formData, setFormData] = useState({
@@ -212,17 +212,18 @@ const Onboarding = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-twine-50 to-twine-100">
-      <OwnerNavbar />
+      <header className="flex items-center justify-between px-6 py-4 bg-white shadow-lg">
+        {/* Logo Text Gradient Updated */}
+        <Link 
+          to="/" 
+          className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-800 tracking-wide"
+        >
+          WorkWise AI Onboarding
+        </Link>
+      </header>
       <div className="p-4">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-twine-500 rounded-full mb-4">
-            <Building2 className="w-10 h-10 text-white" />
-          </div>
-          <h1 className="text-4xl font-bold text-twine-800 mb-2">Welcome to WorkFlow AI</h1>
-          <p className="text-twine-600 text-lg">Let's set up your business profile to get started</p>
-        </div>
+
 
         {/* Main Form Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-twine-200 overflow-hidden">
@@ -309,53 +310,6 @@ const Onboarding = () => {
                   placeholder="Describe your business, what you sell, and any special services you offer..."
                 />
               </div>
-            </div>
-
-            {/* Business Images */}
-            <div className="space-y-6">
-              <h3 className="text-xl font-semibold text-twine-800 flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                Business Images
-              </h3>
-              
-              <div className="border-2 border-dashed border-twine-300 rounded-xl p-8 text-center hover:border-twine-400 transition-colors">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  id="imageUpload"
-                />
-                <label htmlFor="imageUpload" className="cursor-pointer">
-                  <Upload className="w-12 h-12 text-twine-400 mx-auto mb-4" />
-                  <p className="text-twine-600">
-                    <span className="text-twine-500 font-medium">Click to upload</span> or drag and drop
-                  </p>
-                  <p className="text-sm text-twine-500 mt-1">PNG, JPG up to 10MB each</p>
-                </label>
-              </div>
-
-              {formData.businessImages.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {formData.businessImages.map((image, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={URL.createObjectURL(image)}
-                        alt={`Business ${index + 1}`}
-                        className="w-full h-24 object-cover rounded-lg border border-twine-200"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Roles */}
