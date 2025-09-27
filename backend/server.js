@@ -10,7 +10,7 @@ import puppeteer from "puppeteer";
 import QRCode from "qrcode";
 import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
-import { AImodel } from "./geminiAi.js";
+import { AImodel, conversationmodel } from "./geminiAi.js";
 
 dotenv.config();
 
@@ -31,8 +31,10 @@ const io = new Server(httpserver, {
 
 io.use((socket, next) => {
     const user_name = socket.handshake.auth.user_name;
-    console.log(user_name)
-    socket.user_name = user_name
+    const role = socket.handshake.auth.role;
+    console.log('User:', user_name, 'Role:', role);
+    socket.user_name = user_name;
+    socket.user_role = role;
     next()
 });
 
@@ -48,120 +50,222 @@ async function fetchShopData(shopId) {
     return shopDoc.data();
 }
 
-io.on('connection', (socket) => {
-    console.log(socket.id, socket.user_name)
+io.on('connection', async (socket) => {
+    console.log(socket.id, socket.user_name, socket.user_role)
+
+    // Fetch user data based on role
+    let userData = null;
+    if (socket.user_name && socket.user_role === 'owner') {
+        try {
+            const ownerId = socket.user_name;
+            
+            // Fetch shop details
+            const shopsRef = db.collection("shops").where("ownerId", "==", ownerId);
+            const shopsSnapshot = await shopsRef.get();
+            const shopData = shopsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // Fetch employee details
+            const employeesRef = db.collection("employees").where("ownerId", "==", ownerId);
+            const employeesSnapshot = await employeesRef.get();
+            const employeeData = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // Fetch schedules
+            const schedulesRef = db.collection("schedules").where("ownerId", "==", ownerId);
+            const schedulesSnapshot = await schedulesRef.get();
+            const scheduleData = schedulesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            userData = {
+                ownerId,
+                shops: shopData,
+                employees: employeeData,
+                schedules: scheduleData
+            };
+
+            console.log(`Owner data loaded for ${ownerId}:`, {
+                shops: shopData.length,
+                employees: employeeData.length,
+                schedules: scheduleData.length
+            });
+
+        } catch (err) {
+            console.error("Error loading owner data:", err);
+        }
+    } else if (socket.user_name && socket.user_role === 'employee') {
+        try {
+            const employeeId = socket.user_name;
+            
+            // Fetch employee details
+            const employeeRef = db.collection("employees").doc(employeeId);
+            const employeeDoc = await employeeRef.get();
+            
+            if (!employeeDoc.exists) {
+                console.error(`Employee ${employeeId} not found`);
+                return;
+            }
+            
+            const employeeData = employeeDoc.data();
+            
+            // Fetch schedules where this employee is assigned
+            const schedulesRef = db.collection("schedules");
+            const schedulesSnapshot = await schedulesRef.get();
+            
+            const employeeSchedules = [];
+            schedulesSnapshot.docs.forEach(doc => {
+                const scheduleData = doc.data();
+                if (scheduleData.schedule) {
+                    // Check if employee is in any of the schedule timings
+                    const hasEmployee = scheduleData.schedule.some(daySchedule => 
+                        daySchedule.timings && daySchedule.timings.some(timing => 
+                            timing.employeeId === employeeId
+                        )
+                    );
+                    
+                    if (hasEmployee) {
+                        // Filter to only include this employee's shifts
+                        const filteredSchedule = scheduleData.schedule.map(daySchedule => ({
+                            ...daySchedule,
+                            timings: daySchedule.timings ? 
+                                daySchedule.timings.filter(timing => timing.employeeId === employeeId) : []
+                        })).filter(daySchedule => daySchedule.timings.length > 0);
+                        
+                        employeeSchedules.push({
+                            id: doc.id,
+                            ...scheduleData,
+                            schedule: filteredSchedule
+                        });
+                    }
+                }
+            });
+
+            userData = {
+                employeeId,
+                employee: employeeData,
+                schedules: employeeSchedules
+            };
+
+            console.log(`Employee data loaded for ${employeeId}:`, {
+                employee: employeeData.name,
+                schedules: employeeSchedules.length
+            });
+
+        } catch (err) {
+            console.error("Error loading employee data:", err);
+        }
+    }
+
+    // Determine user role and set appropriate prompt
+    let userPrompt = '';
+    if (socket.user_role === 'owner') {
+        userPrompt = `You are a Personal Business Assistant for a shop owner. Your primary role is to help the owner manage their business operations, schedule tasks, get updates, and navigate between different pages of their business management system.
+
+Your primary functions are:
+1. Help schedule and manage employee tasks and shifts
+2. Provide updates on business operations, schedules, and employee status
+3. Navigate between your admin pages (admin dashboard, staff management, schedule dashboard, business profile)
+4. Analyze schedules and provide optimization suggestions
+5. Help with employee management and task assignment
+6. Provide business insights based on current data
+7. Help create new schedules or modify existing ones
+8. Suggest improvements for business operations
+
+OWNER'S BUSINESS DATA:
+SHOPS: ${JSON.stringify(userData?.shops || [])}
+EMPLOYEES: ${JSON.stringify(userData?.employees || [])}
+SCHEDULES: ${JSON.stringify(userData?.schedules || [])}`;
+    } else if (socket.user_role === 'employee') {
+        userPrompt = `You are a Personal Assistant for an employee. Your primary role is to help the employee with their work-related tasks, check their schedule, and provide assistance with their job responsibilities.
+
+Your primary functions are:
+1. Help employees check their work schedule and shifts
+2. Provide information about assigned tasks and responsibilities
+3. Help with time management and work planning
+4. Navigate between your employee pages (employee dashboard, schedule, payroll, profile, training)
+5. Provide updates on schedule changes or new assignments
+6. Assist with work-related queries and concerns
+
+EMPLOYEE DATA:
+EMPLOYEE: ${JSON.stringify(userData?.employee || {})}
+SCHEDULES: ${JSON.stringify(userData?.schedules || [])}`;
+    } else {
+        userPrompt = `You are a general assistant. Please help the user with their queries.`;
+    }
 
     const actual_history = [{
         role: "user",
         parts: [
             {
-                text: `You are Jharkhand Tourism Assistant, a specialized AI guide for exploring the beautiful state of Jharkhand, India. Your name is Sarthi meaning guide or companion in Hindi.
+                text: `${userPrompt}
 
-Your primary functions are:
-1. Help users discover tourist destinations, attractions, and activities in Jharkhand
-2. Generate personalized itineraries based on user preferences, budget, and duration
-3. Provide detailed information about places, timings, entry fees, and best times to visit
-4. Answer tourism-related questions about Jharkhand's culture, history, and attractions
-5. Navigate users through different sections of the tourism website
-6. Save and update itineraries when users request to save their itinerary
-7. Act as a general website assistant for any other queries
-
-When users ask about destinations or attractions, provide comprehensive information including description and highlights, best time to visit, entry fees and timings, nearby attractions, budget estimates, and travel tips.
-
-For general questions about the website, tourism, or any other topics, provide helpful and informative responses without asking follow-up questions.
-
-Only when users specifically ask to generate an itinerary, then ask follow-up questions to gather more details about their preferences before creating the itinerary. Ask about their interests, budget range, preferred duration, accommodation preferences, and any specific places they want to visit.
-
-When the user wants to search for destinations or attractions, generate the response in JSON format as follows:
+SCHEDULE GENERATION:
+When users ask to generate a schedule, create a complete weekly schedule in the following JSON format:
 {
-  "data-type": "JSON",
-  "search_result": [{destination1}, {destination2}, ...],
-  "summary": "Brief overview of search results"
+  "data-type": "SCHEDULE",
+  "shopId": "shop_id_here",
+  "schedule": [
+    {
+      "workday": 0,
+      "timings": [
+        { "start": "09:00", "end": "13:00", "employeeId": "emp_1" },
+        { "start": "13:00", "end": "17:00", "employeeId": "emp_2" }
+      ]
+    },
+    {
+      "workday": 1,
+      "timings": [
+        { "start": "10:00", "end": "14:00", "employeeId": "emp_2" }
+      ]
+    }
+  ],
+  "ai_suggestions": "Brief suggestions for schedule optimization"
 }
 
-For itinerary requests, respond with:
+SCHEDULE SAVING:
+When users ask to save a schedule, respond with:
 {
-  "data-type": "ITINERARY",
-  "itinerary": {
-    "title": "Itinerary Title",
-    "duration": "X days",
-    "budget": "₹X-₹Y per person",
-    "destinations": ["Destination1", "Destination2"],
-    "day_wise_plan": [
-      {
-        "day": 1,
-        "date": "YYYY-MM-DD",
-        "destinations": ["Destination1", "Destination2"],
-        "activities": ["Activity1", "Activity2"],
-        "accommodation": "Hotel/Resort name"
-      }
-    ],
-    "tips": ["Tip1", "Tip2"]
-  }
-}
-
-After generating an itinerary, always include a short summary about the places visited and cost estimation in paragraph format.
-
-When users ask to save their itinerary, emit a save command with the itinerary data in JSON format as follows. Make sure to include the exact command "SAVE_ITINERARY" in quotes:
-
-{
-  "data-type": "SAVE_ITINERARY",
+  "data-type": "SAVE_SCHEDULE",
   "command": "save",
-  "itinerary": {
-    "title": "Itinerary Title",
-    "duration": "X days",
-    "budget": "₹X-₹Y per person",
-    "destinations": ["Destination1", "Destination2"],
-    "day_wise_plan": [
-      {
-        "day": 1,
-        "date": "YYYY-MM-DD",
-        "destinations": ["Destination1", "Destination2"],
-        "activities": ["Activity1", "Activity2"],
-        "accommodation": "Hotel/Resort name"
-      }
-    ],
-    "tips": ["Tip1", "Tip2"]
-  }
+  "shopId": "shop_id_here",
+  "schedule": [schedule_array_here],
+  "ai_suggestions": "suggestions_here"
 }
 
-After emitting the save command, respond with only: "Itinerary saved successfully!"
+After emitting the save command, respond with only: "Schedule saved successfully!"
 
-When the user asks to navigate to a page, respond with exactly: open pagename. Available pages are home, destinations, itinerary, marketplace, profile. Do not add any other text or explanation when responding to navigation requests.
+NAVIGATION COMMANDS:
+When the user asks to navigate to a page, respond with exactly: open pagename. 
 
-Always answer in paragraph format only. Do not use bullet points, numbered lists, or any special characters. Write complete sentences in flowing paragraphs. Keep responses helpful, engaging, and focused on promoting Jharkhand tourism. Always provide practical and accurate information.
+Available pages for your role: ${socket.user_role === 'owner' ? 'admin, admindashboard, adminonboarding, adminstaffmanagement, adminscheduledashboard, adminbusinessprofile' : socket.user_role === 'employee' ? 'employeedashboard, employeeschedule, employeepayroll, employeeprofile, employeetraining' : 'home'}
+
+Common navigation requests:
+${socket.user_role === 'owner' ? 
+  '- "dashboard" → "open admindashboard"\n- "staff" → "open adminstaffmanagement"\n- "schedule" → "open adminscheduledashboard"\n- "business" → "open adminbusinessprofile"' : 
+  socket.user_role === 'employee' ? 
+  '- "dashboard" → "open employeedashboard"\n- "schedule" → "open employeeschedule"\n- "payroll" → "open employeepayroll"\n- "profile" → "open employeeprofile"\n- "training" → "open employeetraining"' : 
+  '- "home" → "open home'}
+
+Do not add any other text or explanation when responding to navigation requests.
+
+Always provide practical, actionable advice based on the actual business data provided. Be specific and reference the actual shops, employees, and schedules when making recommendations. Keep responses helpful, engaging, and focused on business management and optimization.
 
 `
             },
         ],
     },
     {
-        role: "user",
-        parts: [
-            { text: JSON.stringify(user_profile) },
-        ],
-    },
-    {
-        role: "user",
-        parts: [
-            { text: JSON.stringify(tourism_destinations) },
-        ],
-    },
-    {
-        role: "user",
-        parts: [
-            { text: "Attractions are now included within each destination data." },
-        ],
-    },
-    {
         role: "model",
         parts: [
-            { text: "Namaste! I am Sarthi, your personal tourism guide for Jharkhand. I'm here to help you discover the incredible beauty, culture, and attractions of our state. How can I assist you in planning your Jharkhand adventure?" },
+            { 
+                text: socket.user_role === 'owner' 
+                    ? "Hello! I'm your Personal Business Assistant. I have access to your business data including your shops, employees, and schedules. How can I help you manage your business today? I can assist with scheduling, employee management, task assignment, or navigate you to your admin dashboard, staff management, schedule dashboard, or business profile."
+                    : socket.user_role === 'employee'
+                    ? `Hello! I'm your Personal Assistant. I'm here to help you with your work-related tasks and schedule. How can I assist you today? I can help you check your schedule, view your tasks, or navigate to your employee dashboard, schedule, payroll, profile, or training sections.`
+                    : "Hello! I'm your assistant. How can I help you today?"
+            },
         ],
     },]
 
 
-        const chatSession = AImodel.startChat({
+        const chatSession = conversationmodel.startChat({
 
             // safetySettings: Adjust safety settings
             // See https://ai.google.dev/gemini-api/docs/safety-settings
@@ -192,48 +296,42 @@ Always answer in paragraph format only. Do not use bullet points, numbered lists
                 }
                 console.log(Airesponse)
 
-                // Check if the AI response contains save itinerary command
-                let isSavingItinerary = false;
+                // Check if the AI response contains save schedule command
+                let isSavingSchedule = false;
                 try {
                     const responseText = Airesponse;
-                    if (responseText.includes('"data-type": "SAVE_ITINERARY"')) {
-                        isSavingItinerary = true;
+                    if (responseText.includes('"data-type": "SAVE_SCHEDULE"')) {
+                        isSavingSchedule = true;
                         // Extract JSON from the response
-                        const jsonMatch = responseText.match(/\{[\s\S]*"data-type":\s*"SAVE_ITINERARY"[\s\S]*\}/);
+                        const jsonMatch = responseText.match(/\{[\s\S]*"data-type":\s*"SAVE_SCHEDULE"[\s\S]*\}/);
                         if (jsonMatch) {
                             const saveData = JSON.parse(jsonMatch[0]);
-                            if (saveData.itinerary) {
-                                // Save itinerary to in-memory array
-                                const itineraryId = `itinerary_${Date.now()}`;
-                                const itineraryToSave = {
-                                    id: itineraryId,
-                                    title: saveData.itinerary.title,
-                                    duration: saveData.itinerary.duration,
-                                    budget: saveData.itinerary.budget,
-                                    destinations: saveData.itinerary.destinations,
-                                    day_wise_plan: saveData.itinerary.day_wise_plan,
-                                    tips: saveData.itinerary.tips || [],
-                                    user_id: socket.user_name || "anonymous",
+                            if (saveData.schedule) {
+                                // Save schedule to database
+                                const docRef = db.collection("schedules").doc();
+                                const scheduleToSave = {
+                                    scheduleId: docRef.id,
+                                    ownerId: socket.user_name,
+                                    shopId: saveData.shopId || userData?.shops?.[0]?.id,
+                                    schedule: saveData.schedule,
+                                    ai_suggestions: saveData.ai_suggestions || "",
                                     created_by: "AI Assistant",
-                                    created_at: new Date().toISOString(),
-                                    updated_at: new Date().toISOString(),
+                                    createdAt: new Date(),
                                     status: "active"
                                 };
 
-                                // Add to in-memory array
-                                all_itineraries.itineraries.push(itineraryToSave);
-
-                                console.log("Itinerary saved:", itineraryToSave);
+                                await docRef.set(scheduleToSave);
+                                console.log("Schedule saved:", scheduleToSave);
                             }
                         }
                     }
                 } catch (parseError) {
-                    console.log("Could not parse save itinerary command from AI response:", parseError);
+                    console.log("Could not parse save schedule command from AI response:", parseError);
                 }
 
-                // Emit response only when saving itinerary with success message, otherwise emit the AI response
-                if (isSavingItinerary) {
-                    socket.emit("response", "Itinerary saved successfully!");
+                // Emit response only when saving schedule with success message, otherwise emit the AI response
+                if (isSavingSchedule) {
+                    socket.emit("response", "Schedule saved successfully!");
                 } else {
                     socket.emit("response", Airesponse);
                 }
@@ -360,7 +458,7 @@ app.get("/auth/google/callback", async (req, res) => {
 
         // Store temporarily (in production, use Redis or similar)
         tempAuthData = authData;
-        
+
         // console.log('OAuth Callback: Stored auth data:', authData);
         // console.log('OAuth Callback: Redirecting to onboarding page');
 
@@ -827,6 +925,120 @@ app.get("/employee/:employeeId/availability", async (req, res) => {
         });
     } catch (err) {
         console.error("Get Availability Error:", err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
+
+
+app.get("/employee/schedule", async (req, res) => {
+    try {
+        const { shopId, employeeId } = req.query;
+        
+        if (!shopId || !employeeId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "shopId and employeeId are required query parameters" 
+            });
+        }
+        
+        // Fetch schedules for the shop
+        const schedulesRef = db.collection("schedules").where("shopId", "==", shopId);
+        const schedulesSnapshot = await schedulesRef.get();
+        
+        if (schedulesSnapshot.empty) {
+            return res.json({ 
+                success: true, 
+                employeeId: employeeId,
+                shopId: shopId,
+                schedule: [],
+                totalShifts: 0,
+                totalHours: 0,
+                scheduleInfo: null
+            });
+        }
+        
+        // Find the most recent schedule for the shop
+        let latestSchedule = null;
+        let latestDate = null;
+        
+        schedulesSnapshot.docs.forEach(doc => {
+            const scheduleData = doc.data();
+            if (scheduleData.createdAt && (!latestDate || scheduleData.createdAt.toDate() > latestDate)) {
+                latestSchedule = scheduleData;
+                latestDate = scheduleData.createdAt.toDate();
+            }
+        });
+        
+        if (!latestSchedule) {
+            return res.json({ 
+                success: true, 
+                employeeId: employeeId,
+                shopId: shopId,
+                schedule: [],
+                totalShifts: 0,
+                totalHours: 0,
+                scheduleInfo: null
+            });
+        }
+        
+        // Filter schedule for the specific employee
+        const employeeSchedule = [];
+        if (latestSchedule.schedule && Array.isArray(latestSchedule.schedule)) {
+            latestSchedule.schedule.forEach(daySchedule => {
+                if (daySchedule.timings && Array.isArray(daySchedule.timings)) {
+                    daySchedule.timings.forEach(timing => {
+                        if (timing.employeeId === employeeId) {
+                            // Calculate the actual date for this workday
+                            const today = new Date();
+                            const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                            const startOfWeek = new Date(today);
+                            startOfWeek.setDate(today.getDate() - currentDay); // Go back to Sunday
+                            
+                            const workdayDate = new Date(startOfWeek);
+                            workdayDate.setDate(startOfWeek.getDate() + daySchedule.workday);
+                            
+                            employeeSchedule.push({
+                                workday: daySchedule.workday,
+                                start: timing.start,
+                                end: timing.end,
+                                date: workdayDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+                                incentive: timing.incentive || null
+                            });
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Sort by workday
+        employeeSchedule.sort((a, b) => a.workday - b.workday);
+        
+        // Calculate total hours
+        const totalHours = employeeSchedule.reduce((total, shift) => {
+            if (shift.start && shift.end) {
+                const startTime = new Date(`2000-01-01T${shift.start}:00`);
+                const endTime = new Date(`2000-01-01T${shift.end}:00`);
+                const hours = (endTime - startTime) / (1000 * 60 * 60); // Convert to hours
+                return total + hours;
+            }
+            return total;
+        }, 0);
+        
+        res.json({ 
+            success: true, 
+            employeeId: employeeId,
+            shopId: shopId,
+            schedule: employeeSchedule,
+            totalShifts: employeeSchedule.length,
+            totalHours: Math.round(totalHours * 100) / 100, // Round to 2 decimal places
+            scheduleInfo: {
+                scheduleId: latestSchedule.scheduleId,
+                createdAt: latestSchedule.createdAt
+            }
+        });
+        
+    } catch (err) {
+        console.error("Get Employee Schedule Error:", err);
         res.status(500).json({ success: false, message: "Server error" });
     }
 });
