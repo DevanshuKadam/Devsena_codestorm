@@ -49,11 +49,11 @@ const StaffManagement = () => {
 
         // Fetch business profile to get shop data
         const profileResponse = await fetch(`http://localhost:3000/owner/${auth.googleId}/business-profile`);
-        
+
         if (!profileResponse.ok) {
           throw new Error(`Failed to fetch business profile: ${profileResponse.status} ${profileResponse.statusText}`);
         }
-        
+
         const profileResult = await profileResponse.json();
 
         if (!profileResult.success) {
@@ -61,7 +61,7 @@ const StaffManagement = () => {
         }
 
         const { businessProfile } = profileResult;
-        
+
         if (!businessProfile.hasShop) {
           throw new Error('No shop found. Please complete your business registration first.');
         }
@@ -71,11 +71,11 @@ const StaffManagement = () => {
         // Fetch employees for this shop
         console.log('StaffManagement: Fetching employees for shop:', businessProfile.shop.id);
         const employeesResponse = await fetch(`http://localhost:3000/shop/${businessProfile.shop.id}/employees`);
-        
+
         if (!employeesResponse.ok) {
           throw new Error(`Failed to fetch employees: ${employeesResponse.status} ${employeesResponse.statusText}`);
         }
-        
+
         const employeesResult = await employeesResponse.json();
 
         if (!employeesResult.success) {
@@ -87,7 +87,7 @@ const StaffManagement = () => {
 
       } catch (error) {
         console.error('StaffManagement: Error fetching data:', error);
-        
+
         // Handle specific error types
         if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED')) {
           setError('Backend server is not running. Please start the server and try again.');
@@ -129,7 +129,7 @@ const StaffManagement = () => {
 
   const handleAddStaff = async (e) => {
     e.preventDefault();
-    
+
     if (!authData || !shopData) {
       alert('Authentication or shop data not available');
       return;
@@ -162,11 +162,11 @@ const StaffManagement = () => {
         // Refresh the staff list
         const employeesResponse = await fetch(`http://localhost:3000/shop/${shopData.id}/employees`);
         const employeesResult = await employeesResponse.json();
-        
+
         if (employeesResult.success) {
           setStaff(employeesResult.employees);
         }
-        
+
         setNewStaff({ name: '', email: '', phone: '', role: '' });
         setShowAddModal(false);
         alert('Employee added successfully! Registration email sent.');
@@ -277,7 +277,7 @@ const StaffManagement = () => {
       <OwnerNavbar />
       {/* Particles Background */}
       <Particles count={70} />
-      
+
       <div className="relative z-10 pt-24 p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header Card with Glassmorphism */}
@@ -297,7 +297,7 @@ const StaffManagement = () => {
                     <p className="text-gray-600 mt-1">Manage your team members and their availability</p>
                   </div>
                 </div>
-                
+
                 <div className="flex gap-3">
                   {/* Add Staff Button Gradient Updated */}
                   <button
@@ -309,7 +309,7 @@ const StaffManagement = () => {
                       Add New Staff
                     </div>
                   </button>
-                  
+
                   {/* Generate QR Button */}
                   <button
                     onClick={() => setShowQRGenerator(true)}
@@ -353,11 +353,10 @@ const StaffManagement = () => {
                           </div>
                         </div>
                         <div className="mt-2">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                            member.status === 'active' 
-                              ? 'bg-green-100 text-green-800' 
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${member.status === 'active'
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-yellow-100 text-yellow-800'
-                          }`}>
+                            }`}>
                             {member.status === 'active' ? 'Active' : 'New Employee'}
                           </span>
                         </div>
@@ -369,7 +368,7 @@ const StaffManagement = () => {
                       <button className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors">
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => removeStaff(member.id)}
                         className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors"
                       >
@@ -418,76 +417,124 @@ const StaffManagement = () => {
 
           {/* Add Staff Modal */}
           {showAddModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <ShimmerCard className="backdrop-blur-sm bg-white/90 max-w-md w-full">
-                <div className="p-8">
+            // overlay: clicking the backdrop closes modal; clicking inside does not
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              role="dialog"
+              aria-modal="true"
+              // close if user clicks directly on the backdrop (not the form)
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setShowAddModal(false);
+              }}
+              // close on Escape for keyboard users
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setShowAddModal(false);
+              }}
+              tabIndex={-1}
+            >
+              {/* dim layer */}
+              <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
+
+              {/* content container: stop clicks bubbling to backdrop */}
+              <ShimmerCard
+                className="relative max-w-md w-full rounded-2xl shadow-2xl overflow-hidden"
+              // If ShimmerCard animates/remounts children it can cause inputs to lose focus.
+              // If you control ShimmerCard, *avoid* remounting the form on every animation frame.
+              >
+                <div
+                  className="p-8 bg-white/95 backdrop-blur-sm"
+                  onMouseDown={(e) => e.stopPropagation()} // prevent backdrop handler
+                >
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-2xl font-semibold text-gray-900">Add New Staff</h3>
                     <button
                       onClick={() => setShowAddModal(false)}
                       className="text-gray-400 hover:text-gray-600"
+                      aria-label="Close modal"
+                      type="button"
                     >
                       <X className="w-6 h-6" />
                     </button>
                   </div>
 
-                  <form onSubmit={handleAddStaff} className="space-y-6">
-                    {/* Form Input Focus Ring Updated */}
+                  <form
+                    onSubmit={handleAddStaff}
+                    className="space-y-6"
+                  // ensure form doesn't accidentally steal focus from inputs on re-renders
+                  >
+                    {/* Full name */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Full Name *
                       </label>
                       <input
+                        // keyboard users land here immediately
+                        autoFocus
                         type="text"
                         value={newStaff.name}
-                        onChange={(e) => setNewStaff({...newStaff, name: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
+                        onChange={(e) =>
+                          setNewStaff((prev) => ({ ...prev, name: e.target.value }))
+                        }
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white transition-shadow"
                         placeholder="Enter full name"
                         required
                       />
                     </div>
 
+                    {/* Email */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Email Address *
                       </label>
                       <input
+                        
                         type="email"
                         value={newStaff.email}
-                        onChange={(e) => setNewStaff({...newStaff, email: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
+                        onChange={(e) =>
+                          setNewStaff((prev) => ({ ...prev, email: e.target.value }))
+                        }
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white transition-shadow"
                         placeholder="employee@email.com"
                         required
                       />
                     </div>
 
+                    {/* Phone */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Phone Number *
                       </label>
                       <input
                         type="tel"
+                        inputMode="tel"
                         value={newStaff.phone}
-                        onChange={(e) => setNewStaff({...newStaff, phone: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
+                        onChange={(e) =>
+                          setNewStaff((prev) => ({ ...prev, phone: e.target.value }))
+                        }
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white transition-shadow"
                         placeholder="+1 (555) 123-4567"
                         required
                       />
                     </div>
 
+                    {/* Role */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Role *
                       </label>
                       <select
                         value={newStaff.role}
-                        onChange={(e) => setNewStaff({...newStaff, role: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50"
+                        onChange={(e) =>
+                          setNewStaff((prev) => ({ ...prev, role: e.target.value }))
+                        }
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white transition-shadow"
                         required
                       >
                         <option value="">Select a role</option>
-                        {roles.map(role => (
-                          <option key={role} value={role}>{role}</option>
+                        {roles.map((role) => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -506,7 +553,7 @@ const StaffManagement = () => {
                       >
                         Cancel
                       </button>
-                      {/* Submit Button Gradient Updated */}
+
                       <button
                         type="submit"
                         className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-indigo-600 hover:to-blue-500 transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -519,6 +566,7 @@ const StaffManagement = () => {
               </ShimmerCard>
             </div>
           )}
+
 
           {/* QR Code Generator Modal */}
           {authData && shopData && (
