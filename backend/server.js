@@ -929,6 +929,120 @@ app.get("/employee/:employeeId/availability", async (req, res) => {
     }
 });
 
+
+app.get("/employee/schedule", async (req, res) => {
+    try {
+        const { shopId, employeeId } = req.query;
+        
+        if (!shopId || !employeeId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "shopId and employeeId are required query parameters" 
+            });
+        }
+        
+        // Fetch schedules for the shop
+        const schedulesRef = db.collection("schedules").where("shopId", "==", shopId);
+        const schedulesSnapshot = await schedulesRef.get();
+        
+        if (schedulesSnapshot.empty) {
+            return res.json({ 
+                success: true, 
+                employeeId: employeeId,
+                shopId: shopId,
+                schedule: [],
+                totalShifts: 0,
+                totalHours: 0,
+                scheduleInfo: null
+            });
+        }
+        
+        // Find the most recent schedule for the shop
+        let latestSchedule = null;
+        let latestDate = null;
+        
+        schedulesSnapshot.docs.forEach(doc => {
+            const scheduleData = doc.data();
+            if (scheduleData.createdAt && (!latestDate || scheduleData.createdAt.toDate() > latestDate)) {
+                latestSchedule = scheduleData;
+                latestDate = scheduleData.createdAt.toDate();
+            }
+        });
+        
+        if (!latestSchedule) {
+            return res.json({ 
+                success: true, 
+                employeeId: employeeId,
+                shopId: shopId,
+                schedule: [],
+                totalShifts: 0,
+                totalHours: 0,
+                scheduleInfo: null
+            });
+        }
+        
+        // Filter schedule for the specific employee
+        const employeeSchedule = [];
+        if (latestSchedule.schedule && Array.isArray(latestSchedule.schedule)) {
+            latestSchedule.schedule.forEach(daySchedule => {
+                if (daySchedule.timings && Array.isArray(daySchedule.timings)) {
+                    daySchedule.timings.forEach(timing => {
+                        if (timing.employeeId === employeeId) {
+                            // Calculate the actual date for this workday
+                            const today = new Date();
+                            const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                            const startOfWeek = new Date(today);
+                            startOfWeek.setDate(today.getDate() - currentDay); // Go back to Sunday
+                            
+                            const workdayDate = new Date(startOfWeek);
+                            workdayDate.setDate(startOfWeek.getDate() + daySchedule.workday);
+                            
+                            employeeSchedule.push({
+                                workday: daySchedule.workday,
+                                start: timing.start,
+                                end: timing.end,
+                                date: workdayDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+                                incentive: timing.incentive || null
+                            });
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Sort by workday
+        employeeSchedule.sort((a, b) => a.workday - b.workday);
+        
+        // Calculate total hours
+        const totalHours = employeeSchedule.reduce((total, shift) => {
+            if (shift.start && shift.end) {
+                const startTime = new Date(`2000-01-01T${shift.start}:00`);
+                const endTime = new Date(`2000-01-01T${shift.end}:00`);
+                const hours = (endTime - startTime) / (1000 * 60 * 60); // Convert to hours
+                return total + hours;
+            }
+            return total;
+        }, 0);
+        
+        res.json({ 
+            success: true, 
+            employeeId: employeeId,
+            shopId: shopId,
+            schedule: employeeSchedule,
+            totalShifts: employeeSchedule.length,
+            totalHours: Math.round(totalHours * 100) / 100, // Round to 2 decimal places
+            scheduleInfo: {
+                scheduleId: latestSchedule.scheduleId,
+                createdAt: latestSchedule.createdAt
+            }
+        });
+        
+    } catch (err) {
+        console.error("Get Employee Schedule Error:", err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
+
 // Google Calendar Integration
 // Create calendar event for shift
 app.post("/calendar/create-event", async (req, res) => {

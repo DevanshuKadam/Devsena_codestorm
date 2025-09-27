@@ -26,12 +26,14 @@ const AuthCallback = () => {
 
         if (authData.success) {
           // Store user data
+          localStorage.removeItem('employeeData');
           localStorage.setItem('ownerData', JSON.stringify({
             googleId: authData.googleId,
             email: authData.email,
             name: authData.name,
             picture: authData.picture
           }));
+
 
           setStatus('success');
           setMessage('Authentication successful!');
